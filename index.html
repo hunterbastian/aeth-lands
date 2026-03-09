@@ -101,10 +101,123 @@
     transform: translateX(-50%) translateY(0);
   }
 
+  /* Screenshot Button */
+  #screenshot-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    color: #5a4a3a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.3s ease;
+    opacity: 0;
+    animation: btnEntrance 0.5s ease-out 0.8s forwards;
+  }
+  #screenshot-btn:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.4);
+    transform: translateY(-2px);
+  }
+  #screenshot-btn svg { width: 22px; height: 22px; }
+  #screenshot-btn.success {
+    border-color: rgba(120,200,120,0.6);
+    background: rgba(120,200,120,0.2);
+  }
+
+  /* Screenshot Flash */
+  #screenshot-flash {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100;
+    transition: opacity 0.15s ease-out;
+  }
+  #screenshot-flash.active {
+    opacity: 0.7;
+    transition: none;
+  }
+
+  /* Cinematic Tour Button */
+  #tour-btn {
+    position: fixed;
+    top: 20px;
+    right: 74px;
+    width: 44px;
+    height: 44px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    color: #5a4a3a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.3s ease;
+    opacity: 0;
+    animation: btnEntrance 0.5s ease-out 0.9s forwards;
+  }
+  #tour-btn:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.4);
+    transform: translateY(-2px);
+  }
+  #tour-btn.active {
+    background: rgba(255,255,255,0.35);
+    border-color: rgba(255,255,255,0.6);
+  }
+  #tour-btn svg { width: 20px; height: 20px; }
+
+  /* Cinematic indicator */
+  #cinematic-indicator {
+    position: fixed;
+    top: 72px;
+    right: 20px;
+    padding: 6px 14px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    background: rgba(30,28,40,0.7);
+    backdrop-filter: blur(12px);
+    color: #d8d0c4;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  #cinematic-indicator.visible { opacity: 1; }
+
 </style>
 </head>
 <body>
 <div id="ui"></div>
+<div id="screenshot-flash"></div>
+<button id="screenshot-btn" title="Take Screenshot">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+    <circle cx="12" cy="13" r="4"/>
+  </svg>
+</button>
+<button id="tour-btn" title="Cinematic Tour">
+  <svg viewBox="0 0 24 24" fill="currentColor">
+    <polygon points="6,3 20,12 6,21"/>
+  </svg>
+</button>
+<div id="cinematic-indicator">CINEMATIC</div>
 
 <script type="importmap">
 {
@@ -320,7 +433,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 250);
 camera.position.set(8, 6, 8);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
@@ -343,6 +456,47 @@ const bloomPass = new UnrealBloomPass(
   0.85,  // threshold — only bright areas bloom
 );
 composer.addPass(bloomPass);
+
+// ── GOD RAYS (volumetric light scattering) ──────
+const godRayShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uSunScreenPos: { value: new THREE.Vector2(0.5, 0.5) },
+    uIntensity: { value: 0.0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform vec2 uSunScreenPos;
+    uniform float uIntensity;
+    varying vec2 vUv;
+    void main() {
+      vec4 texColor = texture2D(tDiffuse, vUv);
+      if (uIntensity < 0.01) { gl_FragColor = texColor; return; }
+      vec2 deltaUV = (vUv - uSunScreenPos);
+      float dist = length(deltaUV);
+      deltaUV *= 1.0 / 30.0;
+      vec2 uv = vUv;
+      float illumination = 0.0;
+      float decay = 1.0;
+      for (int i = 0; i < 30; i++) {
+        uv -= deltaUV;
+        vec4 s = texture2D(tDiffuse, clamp(uv, 0.0, 1.0));
+        float lum = dot(s.rgb, vec3(0.2126, 0.7152, 0.0722));
+        illumination += lum * decay * 0.033;
+        decay *= 0.96;
+      }
+      float falloff = 1.0 - smoothstep(0.0, 0.8, dist);
+      vec3 rays = vec3(1.0, 0.9, 0.7) * illumination * uIntensity * falloff;
+      gl_FragColor = vec4(texColor.rgb + rays, texColor.a);
+    }
+  `,
+};
+const godRayPass = new ShaderPass(godRayShader);
+composer.addPass(godRayPass);
 
 // Color grading / vignette / atmospheric pass
 const colorGradeShader = {
@@ -448,6 +602,13 @@ scene.add(hemiLight);
 const bounceLight = new THREE.PointLight(0x68a8c0, 0.3, 15);
 bounceLight.position.set(0, -0.5, 0);
 scene.add(bounceLight);
+
+// ── SUN DISK (for god rays) ─────────────────────
+const sunDiskGeo = new THREE.SphereGeometry(1.2, 16, 12);
+const sunDiskMat = new THREE.MeshBasicMaterial({ color: 0xfffae0, transparent: true, opacity: 0.0 });
+const sunDisk = new THREE.Mesh(sunDiskGeo, sunDiskMat);
+sunDisk.position.copy(sunLight.position).multiplyScalar(3);
+scene.add(sunDisk);
 
 // ── NOISE ───────────────────────────────────────
 let seed = 42;
@@ -603,9 +764,11 @@ function getTerrainHeight(x, z, land) {
 let islandGroup = new THREE.Group();
 let cloudGroup = new THREE.Group();
 let particleGroup = new THREE.Group();
+let satelliteGroup = new THREE.Group();
 scene.add(islandGroup);
 scene.add(cloudGroup);
 scene.add(particleGroup);
+scene.add(satelliteGroup);
 
 function createIsland(land) {
   const group = new THREE.Group();
@@ -1895,6 +2058,161 @@ function createParticles(land) {
   return group;
 }
 
+// ── SATELLITE ISLANDS ───────────────────────────
+function createSatelliteIslands(land) {
+  const group = new THREE.Group();
+  seed = 1100;
+  const OUTLINE_COL = new THREE.Color(land.outline);
+  const configs = [
+    { dist: 8.5,  height: 0.8,  scale: 0.28, orbitSpeed: 0.03,  bobSpeed: 0.5, bobPhase: 0, angleOffset: 0 },
+    { dist: 11.0, height: -0.3, scale: 0.22, orbitSpeed: -0.02, bobSpeed: 0.7, bobPhase: 1.5, angleOffset: 2.1 },
+    { dist: 9.5,  height: 1.2,  scale: 0.18, orbitSpeed: 0.025, bobSpeed: 0.6, bobPhase: 3.0, angleOffset: 4.2 },
+    { dist: 13.0, height: 0.2,  scale: 0.32, orbitSpeed: -0.015, bobSpeed: 0.45, bobPhase: 4.5, angleOffset: 5.5 },
+  ];
+  for (let si = 0; si < configs.length; si++) {
+    const cfg = configs[si];
+    const miniGroup = new THREE.Group();
+    // terrain
+    const miniR = 1.0;
+    const SEG = 20;
+    const geo = new THREE.PlaneGeometry(miniR * 2, miniR * 2, SEG, SEG);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i);
+      const dist = Math.sqrt(x * x + z * z) / miniR;
+      if (dist <= 1.0) {
+        let h = 0.3 + fbm(x * 1.2 + si * 10, z * 1.2 + si * 10, 3) * 0.4;
+        const hill = Math.max(0, 1 - dist * 0.8);
+        h += Math.pow(hill, 0.7) * 0.5;
+        if (dist > 0.75) h *= Math.pow(Math.max(0, (1 - dist) / 0.25), 2.0);
+        pos.setY(i, Math.max(0, h));
+      } else {
+        const angle = Math.atan2(z, x);
+        pos.setX(i, Math.cos(angle) * miniR);
+        pos.setZ(i, Math.sin(angle) * miniR);
+        pos.setY(i, 0);
+      }
+    }
+    geo.computeVertexNormals();
+    // vertex colors
+    const colors = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      const n = noise2D(pos.getX(i) * 3.5 + 7, pos.getZ(i) * 3.5 + 7);
+      let col;
+      if (y < 0.05) col = new THREE.Color(land.colors.sand);
+      else if (y < 0.3) col = n > 0.5 ? new THREE.Color(land.colors.grassLight) : new THREE.Color(land.colors.grass);
+      else col = n > 0.6 ? new THREE.Color(land.colors.grassDark) : new THREE.Color(land.colors.grass);
+      colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const terrainMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad5 });
+    const terrain = new THREE.Mesh(geo, terrainMat);
+    terrain.castShadow = true;
+    terrain.receiveShadow = true;
+    miniGroup.add(terrain);
+    // cliff base
+    const cliffGeo = new THREE.CylinderGeometry(miniR * 0.7, miniR * 0.25, 1.2, 24, 4);
+    const cliffPos = cliffGeo.attributes.position;
+    for (let i = 0; i < cliffPos.count; i++) {
+      const n = noise2D(cliffPos.getX(i) * 3 + 20, cliffPos.getZ(i) * 3 + 20) * 0.15;
+      cliffPos.setX(i, cliffPos.getX(i) * (1 + n));
+      cliffPos.setZ(i, cliffPos.getZ(i) * (1 + n));
+    }
+    cliffGeo.computeVertexNormals();
+    const cliffColors = new Float32Array(cliffPos.count * 3);
+    for (let i = 0; i < cliffPos.count; i++) {
+      const y = cliffPos.getY(i);
+      const n = noise2D(cliffPos.getX(i) * 4, cliffPos.getZ(i) * 4);
+      const col = y > 0.2 ? new THREE.Color(land.colors.cliff) : (n > 0.5 ? new THREE.Color(land.colors.cliffDark) : new THREE.Color(land.colors.rockDark));
+      cliffColors[i * 3] = col.r; cliffColors[i * 3 + 1] = col.g; cliffColors[i * 3 + 2] = col.b;
+    }
+    cliffGeo.setAttribute('color', new THREE.BufferAttribute(cliffColors, 3));
+    const cliffMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad4 });
+    const cliff = new THREE.Mesh(cliffGeo, cliffMat);
+    cliff.position.y = -0.65;
+    cliff.castShadow = true;
+    miniGroup.add(cliff);
+    // outline
+    const outMat = new THREE.MeshBasicMaterial({ color: OUTLINE_COL, side: THREE.BackSide });
+    const outGeo = geo.clone();
+    const oPos = outGeo.attributes.position;
+    for (let i = 0; i < oPos.count; i++) oPos.setY(i, oPos.getY(i) - 0.02);
+    const outMesh = new THREE.Mesh(outGeo, outMat);
+    outMesh.scale.set(1.015, 1, 1.015);
+    miniGroup.add(outMesh);
+    const cliffOut = new THREE.Mesh(cliffGeo.clone(), outMat.clone());
+    cliffOut.position.y = -0.65;
+    cliffOut.scale.multiplyScalar(1.015);
+    miniGroup.add(cliffOut);
+    // vegetation (2-5 trees)
+    if (land.hasTrees && land.treeCount > 0) {
+      const treeCount = 2 + Math.floor(seededRandom() * 4);
+      for (let ti = 0; ti < treeCount; ti++) {
+        const angle = seededRandom() * Math.PI * 2;
+        const r = 0.1 + seededRandom() * miniR * 0.5;
+        const tx = Math.cos(angle) * r;
+        const tz = Math.sin(angle) * r;
+        const tdist = Math.sqrt(tx * tx + tz * tz) / miniR;
+        if (tdist > 0.75) continue;
+        let th = 0.3 + fbm(tx * 1.2 + si * 10, tz * 1.2 + si * 10, 3) * 0.4;
+        const hill = Math.max(0, 1 - tdist * 0.8);
+        th += Math.pow(hill, 0.7) * 0.5;
+        if (th < 0.1) continue;
+        const treeH = 0.2 + seededRandom() * 0.3;
+        const tree = createVegetation(land, treeH, OUTLINE_COL);
+        tree.position.set(tx, th, tz);
+        miniGroup.add(tree);
+      }
+    }
+    // rocks (1-2)
+    if (land.hasRocks) {
+      for (let ri = 0; ri < 2; ri++) {
+        const rx = (seededRandom() - 0.5) * miniR * 0.6;
+        const rz = (seededRandom() - 0.5) * miniR * 0.6;
+        const rdist = Math.sqrt(rx * rx + rz * rz) / miniR;
+        if (rdist > 0.7) continue;
+        let rh = 0.3 + fbm(rx * 1.2 + si * 10, rz * 1.2 + si * 10, 3) * 0.4;
+        const hill = Math.max(0, 1 - rdist * 0.8);
+        rh += Math.pow(hill, 0.7) * 0.5;
+        if (rh < 0.05) continue;
+        const rockSize = 0.03 + seededRandom() * 0.06;
+        const rockGeo = new THREE.IcosahedronGeometry(rockSize, 1);
+        const rPos = rockGeo.attributes.position;
+        for (let k = 0; k < rPos.count; k++) {
+          const n = noise2D(rPos.getX(k) * 15, rPos.getZ(k) * 15) * 0.15 + 0.92;
+          rPos.setX(k, rPos.getX(k) * n); rPos.setY(k, rPos.getY(k) * n * 0.8); rPos.setZ(k, rPos.getZ(k) * n);
+        }
+        rockGeo.computeVertexNormals();
+        const rockMat = new THREE.MeshToonMaterial({ color: new THREE.Color(land.colors.rock), gradientMap: toonGrad4 });
+        const rock = new THREE.Mesh(rockGeo, rockMat);
+        rock.position.set(rx, rh + rockSize * 0.2, rz);
+        rock.rotation.set(seededRandom() * 2, seededRandom() * 2, 0);
+        rock.castShadow = true;
+        miniGroup.add(rock);
+      }
+    }
+    // position and scale
+    miniGroup.scale.setScalar(cfg.scale);
+    const startAngle = cfg.angleOffset;
+    miniGroup.position.set(
+      Math.cos(startAngle) * cfg.dist,
+      cfg.height,
+      Math.sin(startAngle) * cfg.dist,
+    );
+    miniGroup.userData.isSatellite = true;
+    miniGroup.userData.orbitDist = cfg.dist;
+    miniGroup.userData.orbitSpeed = cfg.orbitSpeed;
+    miniGroup.userData.orbitAngle = startAngle;
+    miniGroup.userData.baseHeight = cfg.height;
+    miniGroup.userData.bobSpeed = cfg.bobSpeed;
+    miniGroup.userData.bobPhase = cfg.bobPhase;
+    group.add(miniGroup);
+  }
+  return group;
+}
+
 // ── TRANSITION ──────────────────────────────────
 let currentLandIndex = 0;
 let transitioning = false;
@@ -1921,14 +2239,17 @@ function switchToLand(index) {
       scene.remove(islandGroup);
       scene.remove(cloudGroup);
       scene.remove(particleGroup);
+      scene.remove(satelliteGroup);
       islandGroup = createIsland(LANDS[targetIndex]);
       cloudGroup = createClouds(LANDS[targetIndex]);
       particleGroup = createParticles(LANDS[targetIndex]);
+      satelliteGroup = createSatelliteIslands(LANDS[targetIndex]);
       islandGroup.position.y = -2.5;
       islandGroup.scale.setScalar(0.8);
       scene.add(islandGroup);
       scene.add(cloudGroup);
       scene.add(particleGroup);
+      scene.add(satelliteGroup);
       currentLandIndex = targetIndex;
       updateSceneColors(LANDS[targetIndex]);
       transitionProgress = 0;
@@ -2167,9 +2488,11 @@ LANDS.forEach((land, i) => {
 islandGroup = createIsland(LANDS[0]);
 cloudGroup = createClouds(LANDS[0]);
 particleGroup = createParticles(LANDS[0]);
+satelliteGroup = createSatelliteIslands(LANDS[0]);
 scene.add(islandGroup);
 scene.add(cloudGroup);
 scene.add(particleGroup);
+scene.add(satelliteGroup);
 updateSceneColors(LANDS[0]);
 
 // ── ANIMATION LOOP ──────────────────────────────
@@ -2371,8 +2694,223 @@ function animate() {
     if (cloud.position.x < -18) cloud.position.x = 18;
   });
 
+  // ── SATELLITE ISLAND ANIMATION ──
+  satelliteGroup.children.forEach(sat => {
+    if (sat.userData.isSatellite) {
+      sat.userData.orbitAngle += sat.userData.orbitSpeed * dt;
+      const a = sat.userData.orbitAngle;
+      const d = sat.userData.orbitDist;
+      sat.position.x = Math.cos(a) * d;
+      sat.position.z = Math.sin(a) * d;
+      sat.position.y = sat.userData.baseHeight + Math.sin(elapsed * sat.userData.bobSpeed + sat.userData.bobPhase) * 0.2;
+      sat.rotation.y += dt * 0.05;
+    }
+  });
+
+  // ── GOD RAY UPDATE ──
+  {
+    const sunPos3 = sunLight.position.clone();
+    sunDisk.position.copy(sunPos3).multiplyScalar(3);
+    // project sun to screen space
+    const sunNDC = sunPos3.clone().project(camera);
+    const sunScreenX = sunNDC.x * 0.5 + 0.5;
+    const sunScreenY = sunNDC.y * 0.5 + 0.5;
+    godRayPass.uniforms.uSunScreenPos.value.set(sunScreenX, sunScreenY);
+    // intensity based on time of day — strongest at dawn and sunset
+    const tt = dayTime % 1;
+    let godRayIntensity = 0;
+    // dawn window
+    if (tt > 0.14 && tt < 0.24) {
+      const mid = 0.19;
+      const w = 0.05;
+      godRayIntensity = Math.max(0, 1 - Math.abs(tt - mid) / w);
+    }
+    // sunset window
+    if (tt > 0.56 && tt < 0.70) {
+      const mid = 0.63;
+      const w = 0.07;
+      godRayIntensity = Math.max(godRayIntensity, Math.max(0, 1 - Math.abs(tt - mid) / w));
+    }
+    // zero if sun is behind camera
+    if (sunNDC.z > 1) godRayIntensity = 0;
+    // fade when sun is far off screen
+    const offScreen = Math.max(Math.abs(sunScreenX - 0.5), Math.abs(sunScreenY - 0.5));
+    if (offScreen > 0.6) godRayIntensity *= Math.max(0, 1 - (offScreen - 0.6) / 0.4);
+    godRayPass.uniforms.uIntensity.value = godRayIntensity * 0.6;
+    sunDiskMat.opacity = godRayIntensity * 0.3;
+    sunDiskMat.color.copy(sunLight.color);
+  }
+
+  // ── CINEMATIC CAMERA UPDATE ──
+  if (!transitioning) {
+    updateCinematicCamera(elapsed, dt);
+  }
+
   controls.update();
   composer.render();
+}
+
+// ── SCREENSHOT ──────────────────────────────────
+const screenshotBtn = document.getElementById('screenshot-btn');
+const screenshotFlash = document.getElementById('screenshot-flash');
+screenshotBtn.addEventListener('click', () => {
+  const uiEl = document.getElementById('ui');
+  const tourBtn = document.getElementById('tour-btn');
+  const cinemInd = document.getElementById('cinematic-indicator');
+  // hide UI
+  uiEl.style.display = 'none';
+  screenshotBtn.style.display = 'none';
+  tourBtn.style.display = 'none';
+  cinemInd.style.display = 'none';
+  // render a clean frame
+  composer.render();
+  // capture
+  const dataURL = renderer.domElement.toDataURL('image/png');
+  const biomeName = LANDS[currentLandIndex].name.toLowerCase().replace(/\s+/g, '-');
+  const timestamp = Date.now();
+  const link = document.createElement('a');
+  link.href = dataURL;
+  link.download = `aethlands-${biomeName}-${timestamp}.png`;
+  link.click();
+  // flash
+  screenshotFlash.classList.add('active');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      screenshotFlash.classList.remove('active');
+    });
+  });
+  // restore UI
+  uiEl.style.display = '';
+  screenshotBtn.style.display = '';
+  tourBtn.style.display = '';
+  cinemInd.style.display = '';
+  // success animation
+  screenshotBtn.classList.add('success');
+  setTimeout(() => screenshotBtn.classList.remove('success'), 1200);
+});
+
+// ── CINEMATIC CAMERA ────────────────────────────
+let lastInteractionTime = 0;
+let cinematicMode = false;
+let cinematicBlend = 0; // 0 = user control, 1 = cinematic
+let cinematicAngle = 0;
+let tourMode = false;
+let tourLandIndex = 0;
+let tourTimer = 0;
+let tourCameraPhase = 0;
+const IDLE_TIMEOUT = 15; // seconds
+const savedCameraState = { pos: new THREE.Vector3(), target: new THREE.Vector3() };
+
+function resetIdleTimer() {
+  lastInteractionTime = clock.getElapsedTime();
+  if (cinematicMode && !tourMode) {
+    exitCinematicMode();
+  }
+}
+
+// idle detection events
+['mousemove', 'mousedown', 'wheel', 'touchstart', 'touchmove', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, resetIdleTimer, { passive: true });
+});
+
+function enterCinematicMode() {
+  if (cinematicMode) return;
+  cinematicMode = true;
+  cinematicBlend = 0;
+  savedCameraState.pos.copy(camera.position);
+  savedCameraState.target.copy(controls.target);
+  cinematicAngle = Math.atan2(camera.position.z, camera.position.x);
+  controls.enabled = false;
+  document.getElementById('cinematic-indicator').classList.add('visible');
+}
+
+function exitCinematicMode() {
+  if (!cinematicMode) return;
+  cinematicMode = false;
+  tourMode = false;
+  document.getElementById('tour-btn').classList.remove('active');
+  controls.enabled = true;
+  document.getElementById('cinematic-indicator').classList.remove('visible');
+}
+
+// tour button
+const tourBtn = document.getElementById('tour-btn');
+tourBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (tourMode) {
+    exitCinematicMode();
+  } else {
+    tourMode = true;
+    tourTimer = 0;
+    tourLandIndex = currentLandIndex;
+    tourCameraPhase = 0;
+    tourBtn.classList.add('active');
+    if (!cinematicMode) enterCinematicMode();
+    lastInteractionTime = Infinity; // prevent idle exit
+  }
+});
+// prevent tour button from triggering idle exit
+tourBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+
+const tourCameraMoves = [
+  { dist: 8,  height: 4,  lookY: 1.0 }, // close mid
+  { dist: 14, height: 7,  lookY: 0.5 }, // pull back high
+  { dist: 7,  height: 2,  lookY: 0.8 }, // low angle close
+  { dist: 12, height: 9,  lookY: 0.3 }, // high overview
+  { dist: 9,  height: 3,  lookY: 1.2 }, // medium
+  { dist: 13, height: 5,  lookY: 0.7 }, // wide
+  { dist: 8,  height: 6,  lookY: 0.9 }, // close high
+];
+
+function updateCinematicCamera(elapsed, dt) {
+  const timeSinceInteraction = elapsed - lastInteractionTime;
+
+  // auto-enter cinematic after idle timeout
+  if (!cinematicMode && timeSinceInteraction > IDLE_TIMEOUT) {
+    enterCinematicMode();
+  }
+
+  if (!cinematicMode) return;
+
+  // blend in smoothly
+  cinematicBlend = Math.min(1, cinematicBlend + dt * 0.5);
+  const ease = cinematicBlend * cinematicBlend * (3 - 2 * cinematicBlend);
+
+  // tour mode: auto-cycle biomes
+  if (tourMode) {
+    tourTimer += dt;
+    if (tourTimer > 12) {
+      tourTimer = 0;
+      tourLandIndex = (tourLandIndex + 1) % LANDS.length;
+      tourCameraPhase = (tourCameraPhase + 1) % tourCameraMoves.length;
+      switchToLand(tourLandIndex);
+    }
+  }
+
+  // camera orbit
+  cinematicAngle += 0.08 * dt;
+  const move = tourMode ? tourCameraMoves[tourCameraPhase] : { dist: 10, height: 5.5, lookY: 0.8 };
+  const targetDist = tourMode ? move.dist : 10 + Math.sin(elapsed * 0.12) * 3;
+  const targetHeight = tourMode ? move.height : 5.5 + Math.sin(elapsed * 0.08) * 2.5;
+  const lookY = tourMode ? move.lookY : 0.8;
+
+  const targetPos = new THREE.Vector3(
+    Math.cos(cinematicAngle) * targetDist,
+    targetHeight,
+    Math.sin(cinematicAngle) * targetDist,
+  );
+  const targetLookAt = new THREE.Vector3(0, lookY, 0);
+
+  camera.position.lerp(targetPos, ease * 0.03);
+  const currentLookAt = new THREE.Vector3();
+  camera.getWorldDirection(currentLookAt);
+  const lookTarget = new THREE.Vector3().lerpVectors(
+    camera.position.clone().add(currentLookAt),
+    targetLookAt,
+    ease * 0.03,
+  );
+  camera.lookAt(targetLookAt.lerp(lookTarget, 1 - ease * 0.03));
+  controls.target.lerp(targetLookAt, ease * 0.03);
 }
 
 animate();
