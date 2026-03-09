@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aesthetic Lands</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a2e;
+    overflow: hidden;
+    font-family: 'DM Sans', sans-serif;
+    color: #e8e0d4;
+  }
+  canvas { display: block; }
+
+  #ui {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+  }
+  .land-btn {
+    padding: 10px 22px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    color: #5a4a3a;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    letter-spacing: 0.5px;
+  }
+  .land-btn:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.4);
+    transform: translateY(-2px);
+  }
+  .land-btn.active {
+    background: rgba(255,255,255,0.35);
+    border-color: rgba(255,255,255,0.6);
+    box-shadow: 0 4px 20px rgba(180,160,120,0.15);
+  }
+
+  #title {
+    position: fixed;
+    top: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(90,74,58,0.45);
+    z-index: 10;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="title">Aesthetic Lands</div>
+<div id="ui"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ── BIOME PRESETS ─────────────────────────────────
+const LANDS = [
+  {
+    name: 'Meadow',
+    treeStyle: 'round',
+    colors: {
+      grass: '#7ecc7e', grassDark: '#5aaa5a', grassLight: '#a8e098', grassPale: '#c8eeb8',
+      dirt: '#c89868', dirtDark: '#a07848', dirtLight: '#d8b088',
+      sand: '#f0e0b8', sandLight: '#f8ecd0',
+      rock: '#9898a8', rockDark: '#707080', rockMoss: '#6a9a68',
+      snow: '#f4f0ff',
+      water: '#68c0d8', waterShallow: '#98dce8', waterDeep: '#4890b0', waterFoam: '#d8f0f0',
+      trunk: '#8e6e42', trunkDark: '#6a4e2a', trunkLight: '#a88a58',
+      foliage: '#4da854', foliageDark: '#358a38', foliageLight: '#78cc70',
+      flowers: '#ee98b8', flowers2: '#f0c858', flowers3: '#c8a0e0',
+      bush: '#3d8848', bushLight: '#60a858',
+      cliff: '#907060', cliffDark: '#685040', cliffMoss: '#5a8a50',
+    },
+    sky: ['#90c8e8', '#c8e0f0', '#e0eee8'],
+    skyBottom: '#d8ecd8',
+    fog: '#c8dce0',
+    outline: '#4a3828',
+    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
+    mountainHeight: 1.8, treeCount: 65, bushCount: 90,
+    cloudColor: '#ffffff', cloudShadow: '#c8d0d8',
+    ambientColor: '#b8c8d8', sunColor: '#fff0d0',
+    hasButterflies: true,
+  },
+  {
+    name: 'Mushroom Grove',
+    treeStyle: 'mushroom',
+    colors: {
+      grass: '#5a9a70', grassDark: '#3a7a50', grassLight: '#80b888', grassPale: '#a0d0a0',
+      dirt: '#6a5848', dirtDark: '#4a3828', dirtLight: '#887060',
+      sand: '#a89880', sandLight: '#c0b098',
+      rock: '#585068', rockDark: '#3a3248', rockMoss: '#4a6858',
+      snow: '#c8c0d0',
+      water: '#4888a0', waterShallow: '#68a8b8', waterDeep: '#2a6878', waterFoam: '#90c0c8',
+      trunk: '#7a6850', trunkDark: '#584830', trunkLight: '#988868',
+      foliage: '#b058a0', foliageDark: '#884878', foliageLight: '#d878b8',
+      flowers: '#78d8c0', flowers2: '#b890e0', flowers3: '#e0a8d0',
+      bush: '#4a7858', bushLight: '#5a9068',
+      cliff: '#5a4848', cliffDark: '#3a2828', cliffMoss: '#3a5838',
+    },
+    sky: ['#3a2848', '#584060', '#705878'],
+    skyBottom: '#685068',
+    fog: '#584058',
+    outline: '#2a1828',
+    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
+    mountainHeight: 1.2, treeCount: 45, bushCount: 60,
+    cloudColor: '#887880', cloudShadow: '#605058',
+    ambientColor: '#806878', sunColor: '#d8b8c8',
+    hasGlowSpots: true,
+  },
+  {
+    name: 'Crystal Peaks',
+    treeStyle: 'crystal',
+    colors: {
+      grass: '#88a0b0', grassDark: '#6880a0', grassLight: '#a8c0c8', grassPale: '#c0d0d8',
+      dirt: '#707888', dirtDark: '#506070', dirtLight: '#8898a0',
+      sand: '#b0b8c8', sandLight: '#c8d0d8',
+      rock: '#5868a0', rockDark: '#384878', rockMoss: '#607898',
+      snow: '#e0ecff',
+      water: '#3868a8', waterShallow: '#5888c0', waterDeep: '#204888', waterFoam: '#a0c0e0',
+      trunk: '#6070a0', trunkDark: '#405080', trunkLight: '#8090b0',
+      foliage: '#78a8e0', foliageDark: '#5888c0', foliageLight: '#a0c8f0',
+      flowers: '#b0d0f0', flowers2: '#d0b8e0', flowers3: '#e0e0f8',
+      bush: '#5878a0', bushLight: '#7090b0',
+      cliff: '#506080', cliffDark: '#384060', cliffMoss: '#486888',
+    },
+    sky: ['#384878', '#6888b0', '#90a8c8'],
+    skyBottom: '#90a8c0',
+    fog: '#7088a8',
+    outline: '#283848',
+    hasTrees: true, hasFlowers: true, hasSnow: true, hasRocks: true, hasBushes: false,
+    mountainHeight: 2.8, treeCount: 30, bushCount: 0,
+    cloudColor: '#d0d8e8', cloudShadow: '#9098b0',
+    ambientColor: '#8098b8', sunColor: '#d8e0f0',
+  },
+  {
+    name: 'Autumn Vale',
+    treeStyle: 'round',
+    colors: {
+      grass: '#b09050', grassDark: '#907030', grassLight: '#c8a860', grassPale: '#d8c080',
+      dirt: '#907050', dirtDark: '#705030', dirtLight: '#a88868',
+      sand: '#e0c890', sandLight: '#ecd8a8',
+      rock: '#807060', rockDark: '#605040', rockMoss: '#808050',
+      snow: '#e8e0d0',
+      water: '#5888a0', waterShallow: '#78a8b0', waterDeep: '#387080', waterFoam: '#c0d8d0',
+      trunk: '#684828', trunkDark: '#482810', trunkLight: '#886840',
+      foliage: '#d07028', foliageDark: '#b05010', foliageLight: '#e89040',
+      flowers: '#e04828', flowers2: '#f0b830', flowers3: '#c86020',
+      bush: '#a86828', bushLight: '#c08838',
+      cliff: '#706048', cliffDark: '#504028', cliffMoss: '#787040',
+    },
+    sky: ['#b87848', '#d8a068', '#e8c090'],
+    skyBottom: '#e8c898',
+    fog: '#c8a878',
+    outline: '#402810',
+    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
+    mountainHeight: 1.8, treeCount: 55, bushCount: 70,
+    cloudColor: '#f0e0c0', cloudShadow: '#c0a880',
+    ambientColor: '#c09868', sunColor: '#ffd888',
+    hasLeaves: true,
+  },
+  {
+    name: 'Coral Atoll',
+    treeStyle: 'coral',
+    colors: {
+      grass: '#50b080', grassDark: '#308860', grassLight: '#78c898', grassPale: '#a0e0b0',
+      dirt: '#c0a070', dirtDark: '#a08050', dirtLight: '#d0b888',
+      sand: '#f0e4b0', sandLight: '#f8f0c8',
+      rock: '#a88870', rockDark: '#886850', rockMoss: '#60a078',
+      snow: '#e8e0d8',
+      water: '#10a8c0', waterShallow: '#40d0d8', waterDeep: '#0888a0', waterFoam: '#c8f0f0',
+      trunk: '#988060', trunkDark: '#786040', trunkLight: '#b0a078',
+      foliage: '#e86050', foliageDark: '#c83830', foliageLight: '#f08878',
+      flowers: '#f09030', flowers2: '#e05890', flowers3: '#f8c050',
+      bush: '#40a070', bushLight: '#60b888',
+      cliff: '#a89078', cliffDark: '#887058', cliffMoss: '#58a070',
+    },
+    sky: ['#2898b0', '#58c0d0', '#90d8e0'],
+    skyBottom: '#b8e0d8',
+    fog: '#80c0c8',
+    outline: '#283840',
+    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
+    mountainHeight: 0.9, treeCount: 35, bushCount: 50,
+    cloudColor: '#f0f8ff', cloudShadow: '#b8d0d8',
+    ambientColor: '#90c8d0', sunColor: '#fff0d8',
+    hasButterflies: true,
+  },
+  {
+    name: 'Spirit Forest',
+    treeStyle: 'tall',
+    colors: {
+      grass: '#2a5838', grassDark: '#183820', grassLight: '#3a7048', grassPale: '#488858',
+      dirt: '#403828', dirtDark: '#282018', dirtLight: '#585040',
+      sand: '#506048', sandLight: '#688060',
+      rock: '#384038', rockDark: '#202820', rockMoss: '#2a4828',
+      snow: '#90a090',
+      water: '#1a4838', waterShallow: '#2a5848', waterDeep: '#0a2818', waterFoam: '#4a7860',
+      trunk: '#2a3020', trunkDark: '#181810', trunkLight: '#3a4830',
+      foliage: '#1a4828', foliageDark: '#0a2818', foliageLight: '#2a6838',
+      flowers: '#60e8a0', flowers2: '#48c8a0', flowers3: '#80f0c0',
+      bush: '#1a3820', bushLight: '#2a4828',
+      cliff: '#383028', cliffDark: '#201810', cliffMoss: '#2a4020',
+    },
+    sky: ['#0a1810', '#182820', '#283830'],
+    skyBottom: '#203020',
+    fog: '#182818',
+    outline: '#080c08',
+    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
+    mountainHeight: 2.0, treeCount: 60, bushCount: 80,
+    cloudColor: '#304030', cloudShadow: '#182818',
+    ambientColor: '#304838', sunColor: '#88b088',
+    hasGlowSpots: true,
+  },
+  {
+    name: 'Volcanic',
+    treeStyle: 'round',
+    colors: {
+      grass: '#506048', grassDark: '#384030', grassLight: '#687858', grassPale: '#788868',
+      dirt: '#484040', dirtDark: '#302828', dirtLight: '#585050',
+      sand: '#605850', sandLight: '#787060',
+      rock: '#383038', rockDark: '#201820', rockMoss: '#384028',
+      snow: '#808080',
+      water: '#283848', waterShallow: '#385058', waterDeep: '#182830', waterFoam: '#485860',
+      trunk: '#403828', trunkDark: '#282010', trunkLight: '#585038',
+      foliage: '#384830', foliageDark: '#283020', foliageLight: '#485838',
+      flowers: '#e04828', flowers2: '#f08020', flowers3: '#f0c030',
+      bush: '#304028', bushLight: '#3a4830',
+      cliff: '#383030', cliffDark: '#201818', cliffMoss: '#303820',
+    },
+    sky: ['#382020', '#583828', '#704838'],
+    skyBottom: '#504030',
+    fog: '#403030',
+    outline: '#181010',
+    hasTrees: false, hasFlowers: false, hasSnow: false, hasRocks: true, hasBushes: false,
+    mountainHeight: 2.2, treeCount: 0, bushCount: 0,
+    cloudColor: '#585050', cloudShadow: '#383030',
+    ambientColor: '#504040', sunColor: '#e8a880',
+    hasLavaGlow: true,
+  },
+];
+
+// ── THREE.JS SETUP ──────────────────────────────
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 250);
+camera.position.set(8, 6, 8);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.04;
+controls.minDistance = 5;
+controls.maxDistance = 18;
+controls.maxPolarAngle = Math.PI / 2.1;
+controls.target.set(0, 0.8, 0);
+
+// ── TOON GRADIENTS ──────────────────────────────
+function createToonGradient(steps, softness = 0.35) {
+  const colors = new Uint8Array(steps);
+  for (let i = 0; i < steps; i++) {
+    colors[i] = Math.floor((i / (steps - 1)) * 255 * (1 - softness) + 255 * softness);
+  }
+  const tex = new THREE.DataTexture(colors, steps, 1, THREE.RedFormat);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const toonGrad3 = createToonGradient(3, 0.42);
+const toonGrad4 = createToonGradient(4, 0.38);
+const toonGrad5 = createToonGradient(5, 0.34);
+const toonGrad6 = createToonGradient(6, 0.3);
+
+// ── LIGHTING ────────────────────────────────────
+const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.55);
+scene.add(ambientLight);
+
+const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.4);
+sunLight.position.set(6, 12, 5);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 0.1;
+sunLight.shadow.camera.far = 35;
+sunLight.shadow.camera.left = -10;
+sunLight.shadow.camera.right = 10;
+sunLight.shadow.camera.top = 10;
+sunLight.shadow.camera.bottom = -10;
+sunLight.shadow.bias = -0.0008;
+sunLight.shadow.radius = 4;
+scene.add(sunLight);
+
+const fillLight = new THREE.DirectionalLight(0xb8c8e8, 0.3);
+fillLight.position.set(-5, 4, -4);
+scene.add(fillLight);
+
+// rim light for that Ghibli backlit glow
+const rimLight = new THREE.DirectionalLight(0xffecd0, 0.35);
+rimLight.position.set(-3, 8, -6);
+scene.add(rimLight);
+
+const hemiLight = new THREE.HemisphereLight(0x88a8c8, 0x605040, 0.35);
+scene.add(hemiLight);
+
+// ── NOISE ───────────────────────────────────────
+let seed = 42;
+function seededRandom() {
+  seed = (seed * 16807) % 2147483647;
+  return (seed - 1) / 2147483646;
+}
+
+function noise2D(x, z) {
+  const ix = Math.floor(x), iz = Math.floor(z);
+  const fx = x - ix, fz = z - iz;
+  const sx = fx * fx * (3 - 2 * fx), sz = fz * fz * (3 - 2 * fz);
+  const hash = (a, b) => {
+    let h = (a * 127 + b * 311 + 7) & 0xffff;
+    h = ((h * h * 13) >> 8) & 0xff;
+    return h / 255;
+  };
+  const v00 = hash(ix, iz), v10 = hash(ix + 1, iz);
+  const v01 = hash(ix, iz + 1), v11 = hash(ix + 1, iz + 1);
+  return (v00 + sx * (v10 - v00)) + sz * ((v01 + sx * (v11 - v01)) - (v00 + sx * (v10 - v00)));
+}
+
+function fbm(x, z, octaves = 4) {
+  let val = 0, amp = 0.5, freq = 1;
+  for (let i = 0; i < octaves; i++) {
+    val += amp * noise2D(x * freq, z * freq);
+    amp *= 0.5;
+    freq *= 2.1;
+  }
+  return val;
+}
+
+// ridge noise for mountain drama
+function ridgeNoise(x, z) {
+  let v = noise2D(x, z);
+  v = Math.abs(v * 2 - 1);
+  return 1 - v;
+}
+
+function ridgeFbm(x, z, octaves = 4) {
+  let val = 0, amp = 0.5, freq = 1;
+  for (let i = 0; i < octaves; i++) {
+    val += amp * ridgeNoise(x * freq, z * freq);
+    amp *= 0.45;
+    freq *= 2.1;
+  }
+  return val;
+}
+
+// ── TERRAIN HEIGHT ──────────────────────────────
+const RADIUS = 2.8;
+
+function getTerrainHeight(x, z, land) {
+  const dist = Math.sqrt(x * x + z * z) / RADIUS;
+  const mh = land.mountainHeight;
+
+  // raised grassy plateau — whole surface is elevated above water
+  let h = mh * 0.45;
+
+  // rolling terrain texture across the surface
+  h += fbm(x * 0.6 + 5, z * 0.6 + 5, 5) * mh * 0.15;
+  h += fbm(x * 1.5 + 20, z * 1.5 + 20, 3) * 0.12;
+  h += noise2D(x * 3.5 + 10, z * 3.5 + 10) * 0.05;
+
+  // ── MULTIPLE DISTINCT HILLS ──
+  // main hill (tallest, slightly off-center)
+  const px1 = x + 0.2, pz1 = z - 0.3;
+  const d1 = Math.sqrt(px1 * px1 + pz1 * pz1);
+  const hill1 = Math.max(0, 1 - d1 * 0.55);
+  h += Math.pow(hill1, 0.7) * mh * 0.55;
+
+  // hill 2 — back-left, second tallest
+  const px2 = x - 1.3, pz2 = z + 0.7;
+  const d2 = Math.sqrt(px2 * px2 + pz2 * pz2);
+  const hill2 = Math.max(0, 1 - d2 * 0.6);
+  h += Math.pow(hill2, 0.65) * mh * 0.4;
+
+  // hill 3 — front-right
+  const px3 = x + 1.2, pz3 = z - 0.8;
+  const d3 = Math.sqrt(px3 * px3 + pz3 * pz3);
+  const hill3 = Math.max(0, 1 - d3 * 0.65);
+  h += Math.pow(hill3, 0.65) * mh * 0.3;
+
+  // hill 4 — small knoll back-right
+  const px4 = x + 0.5, pz4 = z + 1.6;
+  const d4 = Math.sqrt(px4 * px4 + pz4 * pz4);
+  const hill4 = Math.max(0, 1 - d4 * 0.7);
+  h += Math.pow(hill4, 0.7) * mh * 0.2;
+
+  // hill 5 — small knoll front-left
+  const px5 = x - 0.9, pz5 = z - 1.3;
+  const d5 = Math.sqrt(px5 * px5 + pz5 * pz5);
+  const hill5 = Math.max(0, 1 - d5 * 0.8);
+  h += Math.pow(hill5, 0.7) * mh * 0.18;
+
+  // gentle ridge connecting main + hill2
+  const ridgeLine = Math.abs(z - x * 0.35 - 0.15);
+  const ridgeWeight = Math.max(0, 1 - ridgeLine * 2) * Math.max(0, 1 - dist * 1.2);
+  h += ridgeWeight * mh * 0.06;
+
+  // ridge surface detail
+  h += ridgeFbm(x * 0.9 + 3, z * 0.9 + 3, 3) * mh * 0.06;
+
+  // valleys between hills (saddles between peaks)
+  const v1 = Math.abs(x * 0.5 + z * 0.7 + 0.3);
+  h -= Math.max(0, 0.25 - v1) * 0.18 * (1 - dist);
+  const v2 = Math.abs(x * 0.8 - z * 0.3 - 0.5);
+  h -= Math.max(0, 0.2 - v2) * 0.12 * (1 - dist);
+
+  // cliff edge — holds height until very edge, then sharp cliff drop
+  if (dist > 0.82) {
+    const falloff = Math.pow(Math.max(0, (1 - dist) / 0.18), 2.0);
+    h *= falloff;
+  }
+
+  return Math.max(0, h);
+}
+
+// ── ISLAND CREATION ─────────────────────────────
+let islandGroup = new THREE.Group();
+let cloudGroup = new THREE.Group();
+let particleGroup = new THREE.Group();
+scene.add(islandGroup);
+scene.add(cloudGroup);
+scene.add(particleGroup);
+
+function createIsland(land) {
+  const group = new THREE.Group();
+  seed = 42;
+
+  const SEG = 110;
+  const OUTLINE_COL = new THREE.Color(land.outline);
+
+  // ── TERRAIN MESH — subdivided plane displaced as terrain
+  const GRID = 80;
+  const geometry = new THREE.PlaneGeometry(RADIUS * 2, RADIUS * 2, GRID, GRID);
+  geometry.rotateX(-Math.PI / 2);
+  const pos = geometry.attributes.position;
+
+  let maxTerrainH = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const dist = Math.sqrt(x * x + z * z) / RADIUS;
+    if (dist <= 1.0) {
+      const th = getTerrainHeight(x, z, land);
+      if (th > maxTerrainH) maxTerrainH = th;
+      pos.setY(i, th);
+    } else {
+      // outside island radius — clamp to edge and hide under water
+      const angle = Math.atan2(z, x);
+      pos.setX(i, Math.cos(angle) * RADIUS);
+      pos.setZ(i, Math.sin(angle) * RADIUS);
+      pos.setY(i, 0);
+    }
+  }
+  geometry.computeVertexNormals();
+
+  // rich vertex colors with smooth blending
+  const colors = new Float32Array(pos.count * 3);
+  const c1 = new THREE.Color(), c2 = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i), x = pos.getX(i), z = pos.getZ(i);
+    const dist = Math.sqrt(x * x + z * z) / RADIUS;
+    // use actual terrain height for coloring, not vertex Y (side faces would be wrong)
+    const h = getTerrainHeight(x, z, land);
+    const n = noise2D(x * 3.5 + 7, z * 3.5 + 7);
+    const n2 = noise2D(x * 8 + 15, z * 8 + 15);
+
+    // height bands — grass dominates, only peaks have dirt/rock
+    const sandLine = maxTerrainH * 0.01;
+    const grassLowLine = maxTerrainH * 0.03;
+    const grassHighLine = maxTerrainH * 0.92;
+    const dirtLine = maxTerrainH * 0.96;
+    const rockLine = maxTerrainH * 0.98;
+
+    let col;
+    if (dist > 0.95 || h < 0.01) {
+      col = n > 0.5 ? new THREE.Color(land.colors.sandLight) : new THREE.Color(land.colors.sand);
+    } else if (h < sandLine) {
+      c1.set(land.colors.sand); c2.set(land.colors.grassPale);
+      col = c1.clone().lerp(c2, Math.min(1, h / Math.max(0.01, sandLine)));
+    } else if (h < grassLowLine) {
+      const t = (h - sandLine) / Math.max(0.01, grassLowLine - sandLine);
+      c1.set(land.colors.grassPale); c2.set(n2 > 0.5 ? land.colors.grassLight : land.colors.grass);
+      col = c1.clone().lerp(c2, t);
+    } else if (h < grassHighLine) {
+      col = n > 0.65 ? new THREE.Color(land.colors.grassDark)
+          : n > 0.3 ? new THREE.Color(land.colors.grass)
+          : new THREE.Color(land.colors.grassLight);
+      // occasional pale patches
+      if (n2 > 0.75) col.lerp(new THREE.Color(land.colors.grassPale), 0.25);
+    } else if (h < dirtLine) {
+      c1.set(land.colors.dirt); c2.set(land.colors.dirtDark);
+      col = c1.clone().lerp(c2, n);
+      if (n2 > 0.65) col.lerp(new THREE.Color(land.colors.grassDark), 0.35);
+    } else if (h < rockLine) {
+      c1.set(land.colors.rock); c2.set(land.colors.rockDark);
+      col = c1.clone().lerp(c2, n);
+      if (n2 > 0.6) col.lerp(new THREE.Color(land.colors.rockMoss), 0.4);
+    } else {
+      col = land.hasSnow ? new THREE.Color(land.colors.snow) : new THREE.Color(land.colors.rock);
+    }
+
+    colors[i * 3] = col.r;
+    colors[i * 3 + 1] = col.g;
+    colors[i * 3 + 2] = col.b;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const terrainMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad6 });
+  const terrain = new THREE.Mesh(geometry, terrainMat);
+  terrain.castShadow = true;
+  terrain.receiveShadow = true;
+  group.add(terrain);
+
+  // terrain outline
+  const outlineMat = new THREE.MeshBasicMaterial({ color: OUTLINE_COL, side: THREE.BackSide });
+  const outlineGeo = geometry.clone();
+  const oPos = outlineGeo.attributes.position;
+  for (let i = 0; i < oPos.count; i++) {
+    oPos.setY(i, oPos.getY(i) - 0.03);
+  }
+  const outline = new THREE.Mesh(outlineGeo, outlineMat);
+  outline.scale.set(1.012, 1, 1.012);
+  group.add(outline);
+
+  // ── CLIFF BASE (dramatic layered) ────────
+  const baseGeo = new THREE.CylinderGeometry(RADIUS * 0.78, RADIUS * 0.3, 2.8, SEG, 10);
+  const basePos = baseGeo.attributes.position;
+  for (let i = 0; i < basePos.count; i++) {
+    const x = basePos.getX(i), y = basePos.getY(i), z = basePos.getZ(i);
+    // organic rocky shape
+    const n = noise2D(x * 2 + 20, z * 2 + 20) * 0.2;
+    const n2 = noise2D(x * 5 + y * 3, z * 5 + y * 3) * 0.06;
+    basePos.setX(i, x * (1 + n * 0.15 + n2));
+    basePos.setZ(i, z * (1 + n * 0.15 + n2));
+    // horizontal striations
+    const stria = Math.sin(y * 12) * 0.02;
+    basePos.setX(i, basePos.getX(i) + stria);
+    basePos.setZ(i, basePos.getZ(i) + stria);
+  }
+  baseGeo.computeVertexNormals();
+
+  // cliff vertex colors — layered earth with moss
+  const baseColors = new Float32Array(basePos.count * 3);
+  for (let i = 0; i < basePos.count; i++) {
+    const y = basePos.getY(i);
+    const x = basePos.getX(i), z = basePos.getZ(i);
+    const n = noise2D(x * 4, z * 4);
+    const n2 = noise2D(x * 8 + 30, z * 8 + 30);
+    let col;
+    if (y > 0.5) {
+      col = n > 0.5 ? new THREE.Color(land.colors.cliff) : new THREE.Color(land.colors.dirt);
+      if (n2 > 0.65) col.lerp(new THREE.Color(land.colors.cliffMoss), 0.5);
+    } else if (y > -0.2) {
+      col = n > 0.5 ? new THREE.Color(land.colors.cliffDark) : new THREE.Color(land.colors.cliff);
+      if (n2 > 0.7) col.lerp(new THREE.Color(land.colors.cliffMoss), 0.3);
+    } else {
+      col = n > 0.5 ? new THREE.Color(land.colors.rockDark) : new THREE.Color(land.colors.rock);
+    }
+    baseColors[i * 3] = col.r;
+    baseColors[i * 3 + 1] = col.g;
+    baseColors[i * 3 + 2] = col.b;
+  }
+  baseGeo.setAttribute('color', new THREE.BufferAttribute(baseColors, 3));
+
+  const baseMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad5 });
+  const base = new THREE.Mesh(baseGeo, baseMat);
+  base.position.y = -1.55;
+  base.castShadow = true;
+  group.add(base);
+
+  const baseOutline = new THREE.Mesh(baseGeo.clone(), outlineMat.clone());
+  baseOutline.position.y = -1.55;
+  baseOutline.scale.multiplyScalar(1.012);
+  group.add(baseOutline);
+
+  // ── CLIFF VEGETATION (roots, moss patches) ──
+  seed = 900;
+  for (let i = 0; i < 18; i++) {
+    const angle = seededRandom() * Math.PI * 2;
+    const r = RADIUS * (0.72 + seededRandom() * 0.12);
+    const rx = Math.cos(angle) * r;
+    const rz = Math.sin(angle) * r;
+    const ry = -0.2 - seededRandom() * 1.2;
+
+    // hanging root/vine
+    const rootH = 0.1 + seededRandom() * 0.25;
+    const rootGeo = new THREE.CylinderGeometry(0.006, 0.002, rootH, 3, 4);
+    const rootPos = rootGeo.attributes.position;
+    for (let j = 0; j < rootPos.count; j++) {
+      const y = rootPos.getY(j);
+      rootPos.setX(j, rootPos.getX(j) + Math.sin(y * 8) * 0.008);
+    }
+    rootGeo.computeVertexNormals();
+    const rootMat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(seededRandom() > 0.4 ? land.colors.cliffMoss : land.colors.trunkDark),
+      gradientMap: toonGrad3,
+    });
+    const root = new THREE.Mesh(rootGeo, rootMat);
+    root.position.set(rx, ry, rz);
+    root.lookAt(0, ry, 0);
+    root.rotateX(Math.PI * 0.4 + seededRandom() * 0.3);
+    group.add(root);
+  }
+
+  // ── WATER ─────────────────────────────────
+  const waterGeo = new THREE.CircleGeometry(RADIUS * 1.8, SEG);
+  waterGeo.rotateX(-Math.PI / 2);
+  const waterMat = new THREE.MeshToonMaterial({
+    color: new THREE.Color(land.colors.water),
+    transparent: true, opacity: 0.55,
+    gradientMap: toonGrad3,
+  });
+  const water = new THREE.Mesh(waterGeo, waterMat);
+  water.position.y = 0.02;
+  water.receiveShadow = true;
+  water.userData.isWater = true;
+  group.add(water);
+
+  // shallow ring
+  const shallowGeo = new THREE.RingGeometry(RADIUS * 0.72, RADIUS * 1.1, SEG);
+  shallowGeo.rotateX(-Math.PI / 2);
+  const shallowMat = new THREE.MeshToonMaterial({
+    color: new THREE.Color(land.colors.waterShallow),
+    transparent: true, opacity: 0.4,
+    gradientMap: toonGrad3,
+  });
+  const shallow = new THREE.Mesh(shallowGeo, shallowMat);
+  shallow.position.y = 0.04;
+  shallow.userData.isWater = true;
+  group.add(shallow);
+
+  // foam ring at shore
+  const foamGeo = new THREE.RingGeometry(RADIUS * 0.82, RADIUS * 0.92, SEG);
+  foamGeo.rotateX(-Math.PI / 2);
+  const foamMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(land.colors.waterFoam),
+    transparent: true, opacity: 0.35,
+  });
+  const foam = new THREE.Mesh(foamGeo, foamMat);
+  foam.position.y = 0.06;
+  foam.userData.isFoam = true;
+  group.add(foam);
+
+  // ── TREES (varied sizes) ─────────────────
+  if (land.hasTrees && land.treeCount > 0) {
+    seed = 100;
+    for (let i = 0; i < land.treeCount; i++) {
+      const angle = seededRandom() * Math.PI * 2;
+      const r = 0.3 + seededRandom() * (RADIUS * 0.62);
+      const tx = Math.cos(angle) * r;
+      const tz = Math.sin(angle) * r;
+      const dist = Math.sqrt(tx * tx + tz * tz) / RADIUS;
+      const th = getTerrainHeight(tx, tz, land);
+
+      if (th < 0.12 || th > 3.5 || dist > 0.82) continue;
+
+      // varied tree sizes — Ghibli-scale, lush but varied
+      const sizeClass = seededRandom();
+      let treeH;
+      if (sizeClass > 0.8) treeH = 0.8 + seededRandom() * 0.5;         // large
+      else if (sizeClass > 0.35) treeH = 0.45 + seededRandom() * 0.4;  // medium
+      else treeH = 0.25 + seededRandom() * 0.25;                        // small
+
+      const tree = createVegetation(land, treeH, OUTLINE_COL);
+      tree.position.set(tx, th, tz);
+      tree.rotation.x = (seededRandom() - 0.5) * 0.06;
+      tree.rotation.z = (seededRandom() - 0.5) * 0.06;
+      group.add(tree);
+    }
+  }
+
+  // ── BUSHES / SHRUBS (dense understory) ───
+  if (land.hasBushes && land.bushCount > 0) {
+    seed = 150;
+    for (let i = 0; i < land.bushCount; i++) {
+      const angle = seededRandom() * Math.PI * 2;
+      const r = 0.35 + seededRandom() * (RADIUS * 0.6);
+      const bx = Math.cos(angle) * r;
+      const bz = Math.sin(angle) * r;
+      const dist = Math.sqrt(bx * bx + bz * bz) / RADIUS;
+      const bh = getTerrainHeight(bx, bz, land);
+      if (bh < 0.08 || bh > 2.5 || dist > 0.82) continue;
+
+      const bush = createBush(land, OUTLINE_COL);
+      bush.position.set(bx, bh, bz);
+      group.add(bush);
+    }
+  }
+
+  // ── ROCK CLUSTERS ────────────────────────
+  if (land.hasRocks) {
+    seed = 300;
+    for (let i = 0; i < 35; i++) {
+      const angle = seededRandom() * Math.PI * 2;
+      const r = 0.4 + seededRandom() * (RADIUS * 0.55);
+      const rx = Math.cos(angle) * r;
+      const rz = Math.sin(angle) * r;
+      const dist = Math.sqrt(rx * rx + rz * rz) / RADIUS;
+      const rh = getTerrainHeight(rx, rz, land);
+      if (rh < 0.04 || dist > 0.85) continue;
+
+      // cluster of 2-4 rocks together
+      const clusterSize = 1 + Math.floor(seededRandom() * 3);
+      for (let j = 0; j < clusterSize; j++) {
+        const ox = (seededRandom() - 0.5) * 0.08;
+        const oz = (seededRandom() - 0.5) * 0.08;
+        const rockSize = 0.035 + seededRandom() * 0.08;
+        const rockGeo = new THREE.IcosahedronGeometry(rockSize, 1);
+        // deform for organic shape
+        const rPos = rockGeo.attributes.position;
+        for (let k = 0; k < rPos.count; k++) {
+          const n = noise2D(rPos.getX(k) * 15 + i, rPos.getZ(k) * 15) * 0.15 + 0.92;
+          rPos.setX(k, rPos.getX(k) * n);
+          rPos.setY(k, rPos.getY(k) * n * 0.8); // squat
+          rPos.setZ(k, rPos.getZ(k) * n);
+        }
+        rockGeo.computeVertexNormals();
+
+        // mossy rock coloring
+        const n = noise2D(rx * 5 + j, rz * 5 + j);
+        const rockCol = n > 0.6 ? land.colors.rockMoss : (n > 0.3 ? land.colors.rock : land.colors.rockDark);
+        const rockMat = new THREE.MeshToonMaterial({
+          color: new THREE.Color(rockCol),
+          gradientMap: toonGrad4,
+        });
+        const rock = new THREE.Mesh(rockGeo, rockMat);
+        rock.position.set(rx + ox, rh + rockSize * 0.2, rz + oz);
+        rock.rotation.set(seededRandom() * 2, seededRandom() * 2, seededRandom() * 2);
+        rock.castShadow = true;
+        group.add(rock);
+      }
+    }
+  }
+
+  // ── FLOWER MEADOW PATCHES ────────────────
+  if (land.hasFlowers) {
+    seed = 200;
+    // flower patches (clustered, not scattered)
+    const patchCount = 12 + Math.floor(seededRandom() * 6);
+    for (let p = 0; p < patchCount; p++) {
+      const pAngle = seededRandom() * Math.PI * 2;
+      const pR = 0.5 + seededRandom() * (RADIUS * 0.45);
+      const pcx = Math.cos(pAngle) * pR;
+      const pcz = Math.sin(pAngle) * pR;
+      const pch = getTerrainHeight(pcx, pcz, land);
+      if (pch < 0.1 || pch > 2.5) continue;
+
+      const flowersInPatch = 12 + Math.floor(seededRandom() * 14);
+      for (let i = 0; i < flowersInPatch; i++) {
+        const fx = pcx + (seededRandom() - 0.5) * 0.4;
+        const fz = pcz + (seededRandom() - 0.5) * 0.4;
+        const dist = Math.sqrt(fx * fx + fz * fz) / RADIUS;
+        const fh = getTerrainHeight(fx, fz, land);
+        if (fh < 0.08 || dist > 0.8) continue;
+
+        const flowerColors = [land.colors.flowers, land.colors.flowers2, land.colors.flowers3];
+        const flowerColor = flowerColors[Math.floor(seededRandom() * 3)];
+
+        // flower = tiny stem + spherical bloom
+        const stemH = 0.015 + seededRandom() * 0.02;
+        const stemGeo = new THREE.CylinderGeometry(0.002, 0.003, stemH, 3);
+        const stemMat = new THREE.MeshToonMaterial({
+          color: new THREE.Color(land.colors.grassDark),
+          gradientMap: toonGrad3,
+        });
+        const stem = new THREE.Mesh(stemGeo, stemMat);
+
+        const fSize = 0.012 + seededRandom() * 0.015;
+        const bloomGeo = new THREE.IcosahedronGeometry(fSize, 1);
+        const bloomMat = new THREE.MeshToonMaterial({
+          color: new THREE.Color(flowerColor),
+          gradientMap: toonGrad3,
+        });
+        const bloom = new THREE.Mesh(bloomGeo, bloomMat);
+        bloom.position.y = stemH * 0.5;
+
+        const flowerG = new THREE.Group();
+        flowerG.add(stem);
+        flowerG.add(bloom);
+        flowerG.position.set(fx, fh, fz);
+        flowerG.userData.isFlower = true;
+        flowerG.userData.baseY = fh;
+        flowerG.userData.phase = seededRandom() * Math.PI * 2;
+        group.add(flowerG);
+      }
+    }
+  }
+
+  // ── DENSE GRASS TUFTS ────────────────────
+  seed = 400;
+  const grassCount = land.hasBushes ? 150 : 80;
+  for (let i = 0; i < grassCount; i++) {
+    const angle = seededRandom() * Math.PI * 2;
+    const r = 0.3 + seededRandom() * (RADIUS * 0.6);
+    const gx = Math.cos(angle) * r;
+    const gz = Math.sin(angle) * r;
+    const dist = Math.sqrt(gx * gx + gz * gz) / RADIUS;
+    const gh = getTerrainHeight(gx, gz, land);
+    if (gh < 0.08 || gh > 2.5 || dist > 0.82) continue;
+
+    const bladeCount = 2 + Math.floor(seededRandom() * 3);
+    for (let j = 0; j < bladeCount; j++) {
+      const ox = (seededRandom() - 0.5) * 0.04;
+      const oz = (seededRandom() - 0.5) * 0.04;
+      const bladeH = 0.03 + seededRandom() * 0.06;
+      const bladeGeo = new THREE.ConeGeometry(0.008, bladeH, 3);
+      const bladeMat = new THREE.MeshToonMaterial({
+        color: new THREE.Color(seededRandom() > 0.5 ? land.colors.grass : land.colors.grassDark),
+        gradientMap: toonGrad3,
+      });
+      const blade = new THREE.Mesh(bladeGeo, bladeMat);
+      blade.position.set(gx + ox, gh + bladeH * 0.5, gz + oz);
+      blade.rotation.x = (seededRandom() - 0.5) * 0.35;
+      blade.rotation.z = (seededRandom() - 0.5) * 0.35;
+      group.add(blade);
+    }
+  }
+
+  // ── GLOW SPOTS ───────────────────────────
+  if (land.hasGlowSpots) {
+    seed = 600;
+    for (let i = 0; i < 30; i++) {
+      const angle = seededRandom() * Math.PI * 2;
+      const r = 0.3 + seededRandom() * (RADIUS * 0.6);
+      const gx = Math.cos(angle) * r;
+      const gz = Math.sin(angle) * r;
+      const dist = Math.sqrt(gx * gx + gz * gz) / RADIUS;
+      const gh = getTerrainHeight(gx, gz, land);
+      if (gh < 0.05 || dist > 0.85) continue;
+
+      const glowSize = 0.012 + seededRandom() * 0.018;
+      const glowGeo = new THREE.SphereGeometry(glowSize, 6, 4);
+      const glowColor = seededRandom() > 0.5 ? land.colors.flowers : land.colors.flowers2;
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(glowColor),
+        transparent: true, opacity: 0.75,
+      });
+      const glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.position.set(gx, gh + 0.025, gz);
+      glow.userData.isGlow = true;
+      glow.userData.baseY = gh + 0.025;
+      glow.userData.phase = seededRandom() * Math.PI * 2;
+      group.add(glow);
+    }
+  }
+
+  // ── FLOATING LEAVES ──────────────────────
+  if (land.hasLeaves) {
+    seed = 700;
+    for (let i = 0; i < 35; i++) {
+      const lx = (seededRandom() - 0.5) * RADIUS * 2;
+      const ly = 0.5 + seededRandom() * 3;
+      const lz = (seededRandom() - 0.5) * RADIUS * 2;
+      const leafSize = 0.012 + seededRandom() * 0.015;
+      const leafGeo = new THREE.PlaneGeometry(leafSize, leafSize * 1.5);
+      const leafColors = [land.colors.foliage, land.colors.flowers, land.colors.flowers2, land.colors.foliageLight];
+      const leafColor = leafColors[Math.floor(seededRandom() * leafColors.length)];
+      const leafMat = new THREE.MeshToonMaterial({
+        color: new THREE.Color(leafColor),
+        gradientMap: toonGrad3,
+        side: THREE.DoubleSide,
+      });
+      const leaf = new THREE.Mesh(leafGeo, leafMat);
+      leaf.position.set(lx, ly, lz);
+      leaf.rotation.set(seededRandom() * Math.PI, seededRandom() * Math.PI, seededRandom() * Math.PI);
+      leaf.userData.isLeaf = true;
+      leaf.userData.baseY = ly;
+      leaf.userData.baseX = lx;
+      leaf.userData.phase = seededRandom() * Math.PI * 2;
+      leaf.userData.speed = 0.3 + seededRandom() * 0.5;
+      group.add(leaf);
+    }
+  }
+
+  // ── LAVA GLOW ────────────────────────────
+  if (land.hasLavaGlow) {
+    seed = 800;
+    for (let i = 0; i < 18; i++) {
+      const angle = seededRandom() * Math.PI * 2;
+      const r = 0.15 + seededRandom() * (RADIUS * 0.45);
+      const lx = Math.cos(angle) * r;
+      const lz = Math.sin(angle) * r;
+      const lh = getTerrainHeight(lx, lz, land);
+      if (lh < 0.25) continue;
+
+      const lavaSize = 0.015 + seededRandom() * 0.035;
+      const lavaGeo = new THREE.PlaneGeometry(lavaSize, lavaSize * (2 + seededRandom() * 2));
+      lavaGeo.rotateX(-Math.PI / 2);
+      lavaGeo.rotateY(seededRandom() * Math.PI);
+      const lavaMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(seededRandom() > 0.4 ? '#e84818' : '#f88020'),
+        transparent: true, opacity: 0.65,
+      });
+      const lava = new THREE.Mesh(lavaGeo, lavaMat);
+      lava.position.set(lx, lh + 0.01, lz);
+      lava.userData.isLava = true;
+      lava.userData.phase = seededRandom() * Math.PI * 2;
+      group.add(lava);
+    }
+  }
+
+  return group;
+}
+
+// ── VEGETATION DISPATCHER ───────────────────────
+function createVegetation(land, height, outlineColor) {
+  const style = land.treeStyle || 'round';
+  if (style === 'mushroom') return createMushroomTree(land, height, outlineColor);
+  if (style === 'crystal') return createCrystalSpire(land, height, outlineColor);
+  if (style === 'tall') return createTallTree(land, height, outlineColor);
+  if (style === 'coral') return createCoralFormation(land, height, outlineColor);
+  return createGhibliTree(land, height, outlineColor);
+}
+
+// ── BUSH / SHRUB ────────────────────────────────
+function createBush(land, outlineColor) {
+  const group = new THREE.Group();
+  const bushR = 0.05 + seededRandom() * 0.06;
+  const puffs = 2 + Math.floor(seededRandom() * 3);
+
+  for (let i = 0; i < puffs; i++) {
+    const r = bushR * (0.7 + seededRandom() * 0.5);
+    const geo = new THREE.IcosahedronGeometry(r, 1);
+    const p = geo.attributes.position;
+    for (let j = 0; j < p.count; j++) {
+      const n = noise2D(p.getX(j) * 14 + i * 7, p.getZ(j) * 14) * 0.15 + 0.92;
+      p.setX(j, p.getX(j) * n);
+      p.setY(j, p.getY(j) * n * 0.75);
+      p.setZ(j, p.getZ(j) * n);
+    }
+    geo.computeVertexNormals();
+
+    const mat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(seededRandom() > 0.5 ? land.colors.bush : land.colors.bushLight),
+      gradientMap: toonGrad4,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(
+      (seededRandom() - 0.5) * bushR * 1.5,
+      r * 0.4,
+      (seededRandom() - 0.5) * bushR * 1.5,
+    );
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+
+    // outline
+    const outMesh = new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({ color: outlineColor, side: THREE.BackSide }));
+    outMesh.position.copy(mesh.position);
+    outMesh.scale.multiplyScalar(1.06);
+    group.add(outMesh);
+  }
+
+  return group;
+}
+
+// ── MUSHROOM TREE ───────────────────────────────
+function createMushroomTree(land, height, outlineColor) {
+  const group = new THREE.Group();
+  const stemH = height * 0.6;
+  const capR = height * 0.55;
+
+  // thick stem with bulge
+  const stemGeo = new THREE.CylinderGeometry(0.025, 0.05, stemH, 8, 6);
+  const stemPos = stemGeo.attributes.position;
+  for (let i = 0; i < stemPos.count; i++) {
+    const y = stemPos.getY(i);
+    const t = (y / stemH + 0.5);
+    const bulge = 1 + Math.sin(t * Math.PI) * 0.35;
+    stemPos.setX(i, stemPos.getX(i) * bulge);
+    stemPos.setZ(i, stemPos.getZ(i) * bulge);
+  }
+  stemGeo.computeVertexNormals();
+  const stemMat = new THREE.MeshToonMaterial({
+    color: new THREE.Color(land.colors.trunk), gradientMap: toonGrad4,
+  });
+  const stem = new THREE.Mesh(stemGeo, stemMat);
+  stem.position.y = stemH * 0.5;
+  stem.castShadow = true;
+  group.add(stem);
+
+  // mushroom cap — cluster of overlapping domes
+  const capPuffs = 3 + Math.floor(seededRandom() * 2);
+  for (let c = 0; c < capPuffs; c++) {
+    const cr = capR * (c === 0 ? 1 : 0.5 + seededRandom() * 0.4);
+    const capGeo = new THREE.SphereGeometry(cr, 10, 7, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const capPos = capGeo.attributes.position;
+    for (let i = 0; i < capPos.count; i++) {
+      const y = capPos.getY(i);
+      if (y < cr * 0.05) capPos.setY(i, cr * 0.05);
+      const n = noise2D(capPos.getX(i) * 10 + c * 5, capPos.getZ(i) * 10) * 0.1;
+      capPos.setX(i, capPos.getX(i) * (1 + n));
+      capPos.setZ(i, capPos.getZ(i) * (1 + n));
+    }
+    capGeo.computeVertexNormals();
+
+    // spotted cap vertex colors
+    const capColors = new Float32Array(capPos.count * 3);
+    const baseCol = new THREE.Color(land.colors.foliage);
+    const spotCol = new THREE.Color(land.colors.foliageLight);
+    const darkCol = new THREE.Color(land.colors.foliageDark);
+    for (let i = 0; i < capPos.count; i++) {
+      const x = capPos.getX(i), z = capPos.getZ(i), y = capPos.getY(i);
+      const spot = noise2D(x * 20 + c, z * 20);
+      const c2 = spot > 0.68 ? spotCol : (y < cr * 0.2 ? darkCol : baseCol);
+      capColors[i * 3] = c2.r; capColors[i * 3 + 1] = c2.g; capColors[i * 3 + 2] = c2.b;
+    }
+    capGeo.setAttribute('color', new THREE.BufferAttribute(capColors, 3));
+
+    const capMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad4 });
+    const cap = new THREE.Mesh(capGeo, capMat);
+    const ox = c === 0 ? 0 : (seededRandom() - 0.5) * capR * 0.6;
+    const oz = c === 0 ? 0 : (seededRandom() - 0.5) * capR * 0.6;
+    cap.position.set(ox, stemH * (0.85 + c * 0.05), oz);
+    cap.castShadow = true;
+    cap.receiveShadow = true;
+    group.add(cap);
+
+    const capOut = new THREE.Mesh(capGeo.clone(), new THREE.MeshBasicMaterial({ color: outlineColor, side: THREE.BackSide }));
+    capOut.position.copy(cap.position);
+    capOut.scale.multiplyScalar(1.04);
+    group.add(capOut);
+  }
+
+  // small mushrooms at base
+  for (let i = 0; i < 2; i++) {
+    const miniH = 0.02 + seededRandom() * 0.03;
+    const miniR = 0.012 + seededRandom() * 0.01;
+    const miniStem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.003, 0.005, miniH, 4),
+      new THREE.MeshToonMaterial({ color: new THREE.Color(land.colors.trunkLight), gradientMap: toonGrad3 })
+    );
+    const miniCap = new THREE.Mesh(
+      new THREE.SphereGeometry(miniR, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      new THREE.MeshToonMaterial({ color: new THREE.Color(land.colors.foliageLight), gradientMap: toonGrad3 })
+    );
+    const ox = (seededRandom() - 0.5) * 0.08;
+    const oz = (seededRandom() - 0.5) * 0.08;
+    miniStem.position.set(ox, miniH * 0.5, oz);
+    miniCap.position.set(ox, miniH, oz);
+    group.add(miniStem, miniCap);
+  }
+
+  return group;
+}
+
+// ── CRYSTAL SPIRE ───────────────────────────────
+function createCrystalSpire(land, height, outlineColor) {
+  const group = new THREE.Group();
+  const spireCount = 2 + Math.floor(seededRandom() * 3);
+
+  for (let s = 0; s < spireCount; s++) {
+    const h = height * (0.5 + seededRandom() * 0.9);
+    const r = 0.015 + seededRandom() * 0.04;
+    const sides = 5 + Math.floor(seededRandom() * 2);
+    const geo = new THREE.CylinderGeometry(r * 0.15, r, h, sides, 1);
+
+    // twist and facet
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      const twist = (y / h) * 0.4;
+      const x = pos.getX(i), z = pos.getZ(i);
+      pos.setX(i, x * Math.cos(twist) - z * Math.sin(twist));
+      pos.setZ(i, x * Math.sin(twist) + z * Math.cos(twist));
+    }
+    geo.computeVertexNormals();
+
+    const colors = [land.colors.foliage, land.colors.foliageLight, land.colors.foliageDark];
+    const mat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(colors[s % 3]),
+      gradientMap: toonGrad3,
+      transparent: true, opacity: 0.82,
+    });
+    const crystal = new THREE.Mesh(geo, mat);
+    const ox = (seededRandom() - 0.5) * 0.06;
+    const oz = (seededRandom() - 0.5) * 0.06;
+    crystal.position.set(ox, h * 0.5, oz);
+    crystal.rotation.z = (seededRandom() - 0.5) * 0.35;
+    crystal.rotation.x = (seededRandom() - 0.5) * 0.15;
+    crystal.castShadow = true;
+    group.add(crystal);
+
+    const outMesh = new THREE.Mesh(geo.clone(), new THREE.MeshBasicMaterial({ color: outlineColor, side: THREE.BackSide }));
+    outMesh.position.copy(crystal.position);
+    outMesh.rotation.copy(crystal.rotation);
+    outMesh.scale.multiplyScalar(1.04);
+    group.add(outMesh);
+  }
+
+  // ice/crystal debris at base
+  for (let i = 0; i < 3; i++) {
+    const dSize = 0.008 + seededRandom() * 0.012;
+    const dGeo = new THREE.OctahedronGeometry(dSize, 0);
+    const dMat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(land.colors.foliageLight),
+      gradientMap: toonGrad3,
+      transparent: true, opacity: 0.7,
+    });
+    const debris = new THREE.Mesh(dGeo, dMat);
+    debris.position.set((seededRandom() - 0.5) * 0.08, dSize * 0.5, (seededRandom() - 0.5) * 0.08);
+    debris.rotation.set(seededRandom() * 2, seededRandom() * 2, 0);
+    group.add(debris);
+  }
+
+  return group;
+}
+
+// ── TALL TREE (spirit forest) ───────────────────
+function createTallTree(land, height, outlineColor) {
+  const group = new THREE.Group();
+  const trunkH = height * 1.1;
+
+  // tall trunk with S-curve and exposed root flare
+  const trunkGeo = new THREE.CylinderGeometry(0.012, 0.04, trunkH, 6, 12);
+  const trunkPos = trunkGeo.attributes.position;
+  for (let i = 0; i < trunkPos.count; i++) {
+    const y = trunkPos.getY(i);
+    const t = (y / trunkH + 0.5);
+    // S-curve
+    const bend = Math.sin(t * Math.PI * 1.3) * 0.025;
+    trunkPos.setX(i, trunkPos.getX(i) + bend);
+    // root flare at base
+    if (t < 0.15) {
+      const flare = 1 + (0.15 - t) * 4;
+      trunkPos.setX(i, trunkPos.getX(i) * flare);
+      trunkPos.setZ(i, trunkPos.getZ(i) * flare);
+    }
+  }
+  trunkGeo.computeVertexNormals();
+
+  // trunk vertex colors — dark at base, lighter up
+  const trunkColors = new Float32Array(trunkPos.count * 3);
+  for (let i = 0; i < trunkPos.count; i++) {
+    const t = (trunkPos.getY(i) / trunkH + 0.5);
+    const c = new THREE.Color(land.colors.trunk).lerp(new THREE.Color(land.colors.trunkDark), 1 - t);
+    const n = noise2D(trunkPos.getX(i) * 30, trunkPos.getZ(i) * 30 + trunkPos.getY(i) * 10);
+    if (n > 0.6) c.lerp(new THREE.Color(land.colors.cliffMoss || land.colors.grassDark), 0.3);
+    trunkColors[i * 3] = c.r; trunkColors[i * 3 + 1] = c.g; trunkColors[i * 3 + 2] = c.b;
+  }
+  trunkGeo.setAttribute('color', new THREE.BufferAttribute(trunkColors, 3));
+
+  const trunkMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad4 });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = trunkH * 0.5;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  // trunk outline
+  const trunkOut = new THREE.Mesh(trunkGeo.clone(), new THREE.MeshBasicMaterial({ color: outlineColor, side: THREE.BackSide }));
+  trunkOut.position.copy(trunk.position);
+  trunkOut.scale.multiplyScalar(1.04);
+  group.add(trunkOut);
+
+  // canopy — sparse but layered clusters
+  const leafCount = 4 + Math.floor(seededRandom() * 3);
+  for (let i = 0; i < leafCount; i++) {
+    const lr = 0.035 + seededRandom() * 0.06;
+    const lGeo = new THREE.IcosahedronGeometry(lr, 2);
+    const lPos = lGeo.attributes.position;
+    for (let j = 0; j < lPos.count; j++) {
+      const n = noise2D(lPos.getX(j) * 12 + i * 5, lPos.getZ(j) * 12) * 0.2 + 0.9;
+      lPos.setX(j, lPos.getX(j) * n);
+      lPos.setY(j, lPos.getY(j) * n * 0.65);
+      lPos.setZ(j, lPos.getZ(j) * n);
+    }
+    lGeo.computeVertexNormals();
+
+    const foliageColors = [land.colors.foliage, land.colors.foliageDark, land.colors.foliageLight];
+    const lMat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(foliageColors[i % 3]),
+      gradientMap: toonGrad4,
+    });
+    const leaf = new THREE.Mesh(lGeo, lMat);
+    const angle = (i / leafCount) * Math.PI * 2 + seededRandom() * 0.5;
+    leaf.position.set(
+      Math.cos(angle) * lr * 1.8,
+      trunkH * (0.65 + seededRandom() * 0.35),
+      Math.sin(angle) * lr * 1.8,
+    );
+    leaf.castShadow = true;
+    group.add(leaf);
+
+    const outMesh = new THREE.Mesh(lGeo.clone(), new THREE.MeshBasicMaterial({ color: outlineColor, side: THREE.BackSide }));
+    outMesh.position.copy(leaf.position);
+    outMesh.scale.multiplyScalar(1.06);
+    group.add(outMesh);
+  }
+
+  // hanging vines/moss
+  const vineCount = 2 + Math.floor(seededRandom() * 3);
+  for (let i = 0; i < vineCount; i++) {
+    const vineH = 0.06 + seededRandom() * 0.12;
+    const vineGeo = new THREE.CylinderGeometry(0.003, 0.001, vineH, 3, 5);
+    const vPos = vineGeo.attributes.position;
+    for (let j = 0; j < vPos.count; j++) {
+      vPos.setX(j, vPos.getX(j) + Math.sin(vPos.getY(j) * 12) * 0.005);
+    }
+    vineGeo.computeVertexNormals();
+    const vineMat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(land.colors.foliageDark), gradientMap: toonGrad3,
+    });
+    const vine = new THREE.Mesh(vineGeo, vineMat);
+    vine.position.set(
+      (seededRandom() - 0.5) * 0.08,
+      trunkH * (0.5 + seededRandom() * 0.3),
+      (seededRandom() - 0.5) * 0.08,
+    );
+    vine.rotation.z = Math.PI + (seededRandom() - 0.5) * 0.3;
+    group.add(vine);
+  }
+
+  return group;
+}
+
+// ── CORAL FORMATION ─────────────────────────────
+function createCoralFormation(land, height, outlineColor) {
+  const group = new THREE.Group();
+  const branchCount = 3 + Math.floor(seededRandom() * 3);
+
+  for (let b = 0; b < branchCount; b++) {
+    const bh = height * (0.35 + seededRandom() * 0.65);
+    const br = 0.015 + seededRandom() * 0.025;
+
+    const geo = new THREE.CylinderGeometry(br * 0.3, br, bh, 7, 8);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i), x = pos.getX(i), z = pos.getZ(i);
+      const bump = noise2D(x * 25 + b * 7, z * 25 + y * 12) * 0.006;
+      const bend = (y / bh + 0.5) * (seededRandom() - 0.5) * 0.02;
+      pos.setX(i, x + bump + bend);
+      pos.setZ(i, z + bump);
+    }
+    geo.computeVertexNormals();
+
+    const colors = [land.colors.foliage, land.colors.foliageLight, land.colors.foliageDark];
+    const mat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(colors[b % 3]),
+      gradientMap: toonGrad4,
+    });
+    const branch = new THREE.Mesh(geo, mat);
+    const angle = (b / branchCount) * Math.PI * 2 + seededRandom() * 0.5;
+    const spread = 0.01 + seededRandom() * 0.04;
+    branch.position.set(Math.cos(angle) * spread, bh * 0.5, Math.sin(angle) * spread);
+    branch.rotation.z = (seededRandom() - 0.5) * 0.5;
+    branch.rotation.x = (seededRandom() - 0.5) * 0.35;
+    branch.castShadow = true;
+    group.add(branch);
+
+    // bulb tips with slight glow
+    const tipR = br * 0.6 + seededRandom() * br * 0.3;
+    const tipGeo = new THREE.SphereGeometry(tipR, 6, 5);
+    const tipMat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(land.colors.foliageLight),
+      gradientMap: toonGrad3,
+    });
+    const tip = new THREE.Mesh(tipGeo, tipMat);
+    tip.position.set(branch.position.x, bh * 0.95, branch.position.z);
+    tip.castShadow = true;
+    group.add(tip);
+  }
+
+  // outlines
+  const children = [...group.children];
+  children.forEach(child => {
+    if (child.geometry) {
+      const outMesh = new THREE.Mesh(child.geometry.clone(), new THREE.MeshBasicMaterial({ color: outlineColor, side: THREE.BackSide }));
+      outMesh.position.copy(child.position);
+      outMesh.rotation.copy(child.rotation);
+      outMesh.scale.multiplyScalar(1.04);
+      group.add(outMesh);
+    }
+  });
+
+  return group;
+}
+
+// ── GHIBLI TREE — round puffy foliage ───────────
+function createGhibliTree(land, height, outlineColor) {
+  const group = new THREE.Group();
+
+  // trunk with exposed root flare
+  const trunkGeo = new THREE.CylinderGeometry(0.02, 0.045, height * 0.55, 6, 8);
+  const trunkPos = trunkGeo.attributes.position;
+  for (let i = 0; i < trunkPos.count; i++) {
+    const y = trunkPos.getY(i);
+    const t = (y / (height * 0.55) + 0.5);
+    const bend = Math.sin(t * Math.PI) * 0.012;
+    trunkPos.setX(i, trunkPos.getX(i) + bend);
+    // root flare
+    if (t < 0.12) {
+      const flare = 1 + (0.12 - t) * 3.5;
+      trunkPos.setX(i, trunkPos.getX(i) * flare);
+      trunkPos.setZ(i, trunkPos.getZ(i) * flare);
+    }
+  }
+  trunkGeo.computeVertexNormals();
+  const trunkMat = new THREE.MeshToonMaterial({
+    color: new THREE.Color(land.colors.trunk), gradientMap: toonGrad4,
+  });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = height * 0.275;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  // foliage — bigger cluster with more puffs
+  const foliageGroup = new THREE.Group();
+  foliageGroup.position.y = height * 0.5;
+
+  const canopyR = height * 0.5;
+  const spherePositions = [
+    [0, canopyR * 0.15, 0, canopyR],
+    [canopyR * 0.55, canopyR * 0.05, 0, canopyR * 0.78],
+    [-canopyR * 0.5, canopyR * 0.1, canopyR * 0.25, canopyR * 0.72],
+    [canopyR * 0.15, canopyR * 0.45, -canopyR * 0.2, canopyR * 0.65],
+    [-canopyR * 0.28, -canopyR * 0.05, -canopyR * 0.45, canopyR * 0.68],
+    [canopyR * 0.35, canopyR * 0.35, canopyR * 0.35, canopyR * 0.58],
+    [-canopyR * 0.4, canopyR * 0.38, 0, canopyR * 0.52],
+    [0, canopyR * 0.5, canopyR * 0.15, canopyR * 0.45],
+    [canopyR * 0.2, -canopyR * 0.1, -canopyR * 0.3, canopyR * 0.5],
+  ];
+
+  const foliageColors = [land.colors.foliage, land.colors.foliageDark, land.colors.foliageLight];
+
+  spherePositions.forEach((sp, idx) => {
+    const sGeo = new THREE.IcosahedronGeometry(sp[3], 2);
+    const sPos = sGeo.attributes.position;
+    for (let i = 0; i < sPos.count; i++) {
+      const x = sPos.getX(i), y = sPos.getY(i), z = sPos.getZ(i);
+      const n = noise2D(x * 8 + idx * 10, z * 8 + idx * 10) * 0.18 + 0.9;
+      sPos.setX(i, x * n);
+      sPos.setY(i, y * n);
+      sPos.setZ(i, z * n);
+    }
+    sGeo.computeVertexNormals();
+
+    const sMat = new THREE.MeshToonMaterial({
+      color: new THREE.Color(foliageColors[idx % 3]),
+      gradientMap: toonGrad4,
+    });
+    const sphere = new THREE.Mesh(sGeo, sMat);
+    sphere.position.set(sp[0], sp[1], sp[2]);
+    sphere.castShadow = true;
+    sphere.receiveShadow = true;
+    foliageGroup.add(sphere);
+
+    const outMesh = new THREE.Mesh(sGeo.clone(), new THREE.MeshBasicMaterial({ color: outlineColor, side: THREE.BackSide }));
+    outMesh.position.copy(sphere.position);
+    outMesh.scale.multiplyScalar(1.045);
+    foliageGroup.add(outMesh);
+  });
+
+  group.add(foliageGroup);
+  return group;
+}
+
+// ── CLOUDS (fuller, more detailed) ──────────────
+function createClouds(land) {
+  const group = new THREE.Group();
+  seed = 500;
+
+  for (let i = 0; i < 12; i++) {
+    const cloudG = new THREE.Group();
+    const cx = (seededRandom() - 0.5) * 24;
+    const cy = 4.5 + seededRandom() * 5;
+    const cz = (seededRandom() - 0.5) * 24;
+    const cloudScale = 0.5 + seededRandom() * 1.2;
+
+    const puffs = 4 + Math.floor(seededRandom() * 5);
+    for (let j = 0; j < puffs; j++) {
+      const pr = (0.25 + seededRandom() * 0.5) * cloudScale;
+      const px = (j - puffs / 2) * pr * 0.85;
+      const py = seededRandom() * pr * 0.35;
+      const pz = (seededRandom() - 0.5) * pr * 0.6;
+
+      const pGeo = new THREE.IcosahedronGeometry(pr, 2);
+      const pPos = pGeo.attributes.position;
+      for (let k = 0; k < pPos.count; k++) {
+        let y = pPos.getY(k);
+        if (y < 0) y *= 0.25;
+        pPos.setY(k, y * 0.65);
+        // organic deformation
+        const n = noise2D(pPos.getX(k) * 4 + j, pPos.getZ(k) * 4) * 0.1;
+        pPos.setX(k, pPos.getX(k) * (1 + n));
+        pPos.setZ(k, pPos.getZ(k) * (1 + n));
+      }
+      pGeo.computeVertexNormals();
+
+      const pMat = new THREE.MeshToonMaterial({
+        color: new THREE.Color(py > pr * 0.1 ? land.cloudColor : land.cloudShadow),
+        gradientMap: toonGrad4,
+      });
+      const puff = new THREE.Mesh(pGeo, pMat);
+      puff.position.set(px, py, pz);
+      puff.castShadow = true;
+      cloudG.add(puff);
+    }
+
+    cloudG.position.set(cx, cy, cz);
+    cloudG.userData.speed = 0.015 + seededRandom() * 0.035;
+    cloudG.userData.baseX = cx;
+    group.add(cloudG);
+  }
+
+  return group;
+}
+
+// ── BUTTERFLIES / PARTICLES ─────────────────────
+function createParticles(land) {
+  const group = new THREE.Group();
+  if (!land.hasButterflies && !land.hasGlowSpots) return group;
+
+  seed = 1000;
+  const count = land.hasButterflies ? 10 : 6;
+
+  for (let i = 0; i < count; i++) {
+    const bG = new THREE.Group();
+    const wingSize = 0.012 + seededRandom() * 0.008;
+    const wingGeo = new THREE.PlaneGeometry(wingSize, wingSize * 0.7);
+    const wingColor = land.hasButterflies
+      ? [land.colors.flowers, land.colors.flowers2, land.colors.flowers3][Math.floor(seededRandom() * 3)]
+      : land.colors.flowers;
+    const wingMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(wingColor),
+      transparent: true, opacity: 0.8,
+      side: THREE.DoubleSide,
+    });
+    const wing1 = new THREE.Mesh(wingGeo, wingMat);
+    wing1.position.x = wingSize * 0.4;
+    const wing2 = new THREE.Mesh(wingGeo, wingMat.clone());
+    wing2.position.x = -wingSize * 0.4;
+    bG.add(wing1, wing2);
+
+    bG.position.set(
+      (seededRandom() - 0.5) * RADIUS * 1.5,
+      0.5 + seededRandom() * 2,
+      (seededRandom() - 0.5) * RADIUS * 1.5,
+    );
+    bG.userData.isButterfly = true;
+    bG.userData.phase = seededRandom() * Math.PI * 2;
+    bG.userData.speed = 0.3 + seededRandom() * 0.5;
+    bG.userData.radius = 0.3 + seededRandom() * 0.6;
+    bG.userData.baseY = bG.position.y;
+    bG.userData.centerX = bG.position.x;
+    bG.userData.centerZ = bG.position.z;
+    group.add(bG);
+  }
+
+  return group;
+}
+
+// ── TRANSITION ──────────────────────────────────
+let currentLandIndex = 0;
+let transitioning = false;
+let transitionProgress = 0;
+
+function switchToLand(index) {
+  if (index === currentLandIndex || transitioning) return;
+  transitioning = true;
+  transitionProgress = 0;
+  const targetIndex = index;
+
+  function animateOut() {
+    transitionProgress += 0.026;
+    if (transitionProgress < 1) {
+      const t = transitionProgress;
+      islandGroup.position.y = -t * 2.5;
+      islandGroup.rotation.y += 0.012;
+      islandGroup.scale.setScalar(1 - t * 0.2);
+      cloudGroup.children.forEach(c => {
+        c.children.forEach(p => { if (p.material) p.material.opacity = Math.max(0, 1 - t * 2); });
+      });
+      requestAnimationFrame(animateOut);
+    } else {
+      scene.remove(islandGroup);
+      scene.remove(cloudGroup);
+      scene.remove(particleGroup);
+      islandGroup = createIsland(LANDS[targetIndex]);
+      cloudGroup = createClouds(LANDS[targetIndex]);
+      particleGroup = createParticles(LANDS[targetIndex]);
+      islandGroup.position.y = -2.5;
+      islandGroup.scale.setScalar(0.8);
+      scene.add(islandGroup);
+      scene.add(cloudGroup);
+      scene.add(particleGroup);
+      currentLandIndex = targetIndex;
+      updateSceneColors(LANDS[targetIndex]);
+      transitionProgress = 0;
+      animateIn();
+    }
+  }
+
+  function animateIn() {
+    transitionProgress += 0.022;
+    if (transitionProgress < 1) {
+      const t = 1 - Math.pow(1 - transitionProgress, 3);
+      islandGroup.position.y = -2.5 + t * 2.5;
+      islandGroup.scale.setScalar(0.8 + t * 0.2);
+      requestAnimationFrame(animateIn);
+    } else {
+      islandGroup.position.y = 0;
+      islandGroup.scale.setScalar(1);
+      transitioning = false;
+    }
+  }
+
+  animateOut();
+  document.querySelectorAll('.land-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === targetIndex);
+  });
+}
+
+function updateSceneColors(land) {
+  const canvas2d = document.createElement('canvas');
+  canvas2d.width = 1;
+  canvas2d.height = 512;
+  const ctx2d = canvas2d.getContext('2d');
+  const gradient = ctx2d.createLinearGradient(0, 0, 0, 512);
+  gradient.addColorStop(0, land.sky[0]);
+  gradient.addColorStop(0.4, land.sky[1]);
+  gradient.addColorStop(0.75, land.sky[2]);
+  gradient.addColorStop(1, land.skyBottom);
+  ctx2d.fillStyle = gradient;
+  ctx2d.fillRect(0, 0, 1, 512);
+  const skyTex = new THREE.CanvasTexture(canvas2d);
+  skyTex.mapping = THREE.EquirectangularReflectionMapping;
+  scene.background = skyTex;
+
+  scene.fog = new THREE.FogExp2(new THREE.Color(land.fog), 0.015);
+  ambientLight.color.set(land.ambientColor);
+  sunLight.color.set(land.sunColor);
+}
+
+// ── UI ──────────────────────────────────────────
+const uiContainer = document.getElementById('ui');
+LANDS.forEach((land, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'land-btn' + (i === 0 ? ' active' : '');
+  btn.textContent = land.name;
+  btn.addEventListener('click', () => switchToLand(i));
+  uiContainer.appendChild(btn);
+});
+
+// ── INIT ────────────────────────────────────────
+islandGroup = createIsland(LANDS[0]);
+cloudGroup = createClouds(LANDS[0]);
+particleGroup = createParticles(LANDS[0]);
+scene.add(islandGroup);
+scene.add(cloudGroup);
+scene.add(particleGroup);
+updateSceneColors(LANDS[0]);
+
+// ── ANIMATION LOOP ──────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const elapsed = clock.getElapsedTime();
+
+  // gentle breathing
+  if (!transitioning) {
+    islandGroup.position.y = Math.sin(elapsed * 0.35) * 0.05;
+    islandGroup.rotation.y = Math.sin(elapsed * 0.1) * 0.025;
+  }
+
+  // water + foam + flowers + glow + leaves + lava
+  islandGroup.traverse(child => {
+    if (child.userData.isWater && child.material) {
+      child.material.opacity = child.material.opacity * 0.95 + (0.45 + Math.sin(elapsed * 1.5) * 0.1) * 0.05;
+      child.position.y = (child.userData.isFoam ? 0.06 : 0.02) + Math.sin(elapsed * 1.1) * 0.012;
+    }
+    if (child.userData.isFoam && child.material) {
+      child.material.opacity = 0.2 + Math.sin(elapsed * 0.8) * 0.12;
+    }
+    if (child.userData.isFlower) {
+      child.position.y = child.userData.baseY + Math.sin(elapsed * 2 + child.userData.phase) * 0.004;
+    }
+    if (child.userData.isGlow && child.material) {
+      child.material.opacity = 0.45 + Math.sin(elapsed * 1.6 + child.userData.phase) * 0.3;
+      const s = 1 + Math.sin(elapsed * 2 + child.userData.phase) * 0.18;
+      child.scale.setScalar(s);
+    }
+    if (child.userData.isLeaf) {
+      child.position.y = child.userData.baseY + Math.sin(elapsed * child.userData.speed + child.userData.phase) * 0.12 - elapsed * 0.008;
+      child.position.x = child.userData.baseX + Math.sin(elapsed * 0.35 + child.userData.phase) * 0.25;
+      child.rotation.x += 0.006;
+      child.rotation.z += 0.004;
+      if (child.position.y < 0) child.position.y = child.userData.baseY + 2.5;
+    }
+    if (child.userData.isLava && child.material) {
+      child.material.opacity = 0.35 + Math.sin(elapsed * 3.5 + child.userData.phase) * 0.3;
+    }
+  });
+
+  // butterflies
+  particleGroup.traverse(child => {
+    if (child.userData.isButterfly) {
+      const t = elapsed * child.userData.speed + child.userData.phase;
+      child.position.x = child.userData.centerX + Math.sin(t * 0.7) * child.userData.radius;
+      child.position.z = child.userData.centerZ + Math.cos(t * 0.5) * child.userData.radius;
+      child.position.y = child.userData.baseY + Math.sin(t * 1.5) * 0.2;
+      // wing flap
+      if (child.children[0]) child.children[0].rotation.y = Math.sin(elapsed * 8 + child.userData.phase) * 0.6;
+      if (child.children[1]) child.children[1].rotation.y = -Math.sin(elapsed * 8 + child.userData.phase) * 0.6;
+      child.lookAt(
+        child.position.x + Math.cos(t * 0.7) * 0.5,
+        child.position.y,
+        child.position.z - Math.sin(t * 0.5) * 0.5,
+      );
+    }
+  });
+
+  // drift clouds
+  cloudGroup.children.forEach(cloud => {
+    cloud.position.x = cloud.userData.baseX + Math.sin(elapsed * cloud.userData.speed * 0.4) * 1.5 + elapsed * cloud.userData.speed;
+    cloud.position.y += Math.sin(elapsed * 0.25 + cloud.position.z) * 0.00015;
+    if (cloud.position.x > 18) cloud.position.x = -18;
+  });
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+animate();
+
+// ── RESIZE ──────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
