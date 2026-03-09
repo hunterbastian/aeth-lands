@@ -49,23 +49,9 @@
     box-shadow: 0 4px 20px rgba(180,160,120,0.15);
   }
 
-  #title {
-    position: fixed;
-    top: 28px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: rgba(90,74,58,0.45);
-    z-index: 10;
-    pointer-events: none;
-  }
 </style>
 </head>
 <body>
-<div id="title">Aesthetic Lands</div>
 <div id="ui"></div>
 
 <script type="importmap">
@@ -639,35 +625,66 @@ function createIsland(land) {
     group.add(root);
   }
 
-  // ── WATER ─────────────────────────────────
-  const waterGeo = new THREE.CircleGeometry(RADIUS * 1.8, SEG);
+  // ── WATER (subdivided for wave animation) ─
+  const waterSize = RADIUS * 3.6;
+  const WATER_SEG = 48;
+  const waterGeo = new THREE.PlaneGeometry(waterSize, waterSize, WATER_SEG, WATER_SEG);
   waterGeo.rotateX(-Math.PI / 2);
+  // clip to circle
+  const wPos = waterGeo.attributes.position;
+  const waterR = RADIUS * 1.8;
+  for (let i = 0; i < wPos.count; i++) {
+    const wx = wPos.getX(i), wz = wPos.getZ(i);
+    const wd = Math.sqrt(wx * wx + wz * wz);
+    if (wd > waterR) {
+      const a = Math.atan2(wz, wx);
+      wPos.setX(i, Math.cos(a) * waterR);
+      wPos.setZ(i, Math.sin(a) * waterR);
+    }
+  }
+  // vertex colors — deeper toward edges, shallow near island
+  const waterColors = new Float32Array(wPos.count * 3);
+  const cShallow = new THREE.Color(land.colors.waterShallow);
+  const cMid = new THREE.Color(land.colors.water);
+  const cDeep = new THREE.Color(land.colors.waterDeep);
+  const cFoam = new THREE.Color(land.colors.waterFoam);
+  for (let i = 0; i < wPos.count; i++) {
+    const wx = wPos.getX(i), wz = wPos.getZ(i);
+    const wd = Math.sqrt(wx * wx + wz * wz) / waterR;
+    const islandD = Math.sqrt(wx * wx + wz * wz) / RADIUS;
+    let wc;
+    if (islandD < 0.95) {
+      wc = cFoam.clone().lerp(cShallow, Math.max(0, islandD - 0.6) / 0.35);
+    } else if (wd < 0.5) {
+      wc = cShallow.clone().lerp(cMid, wd * 2);
+    } else {
+      wc = cMid.clone().lerp(cDeep, (wd - 0.5) * 2);
+    }
+    waterColors[i * 3] = wc.r;
+    waterColors[i * 3 + 1] = wc.g;
+    waterColors[i * 3 + 2] = wc.b;
+  }
+  waterGeo.setAttribute('color', new THREE.BufferAttribute(waterColors, 3));
+
+  // store original Y positions for wave animation
+  const waterOrigY = new Float32Array(wPos.count);
+  for (let i = 0; i < wPos.count; i++) waterOrigY[i] = wPos.getY(i);
+
   const waterMat = new THREE.MeshToonMaterial({
-    color: new THREE.Color(land.colors.water),
+    vertexColors: true,
     transparent: true, opacity: 0.55,
-    gradientMap: toonGrad3,
+    gradientMap: toonGrad4,
   });
   const water = new THREE.Mesh(waterGeo, waterMat);
   water.position.y = 0.02;
   water.receiveShadow = true;
   water.userData.isWater = true;
+  water.userData.isWaveWater = true;
+  water.userData.origY = waterOrigY;
   group.add(water);
 
-  // shallow ring
-  const shallowGeo = new THREE.RingGeometry(RADIUS * 0.72, RADIUS * 1.1, SEG);
-  shallowGeo.rotateX(-Math.PI / 2);
-  const shallowMat = new THREE.MeshToonMaterial({
-    color: new THREE.Color(land.colors.waterShallow),
-    transparent: true, opacity: 0.4,
-    gradientMap: toonGrad3,
-  });
-  const shallow = new THREE.Mesh(shallowGeo, shallowMat);
-  shallow.position.y = 0.04;
-  shallow.userData.isWater = true;
-  group.add(shallow);
-
   // foam ring at shore
-  const foamGeo = new THREE.RingGeometry(RADIUS * 0.82, RADIUS * 0.92, SEG);
+  const foamGeo = new THREE.RingGeometry(RADIUS * 0.82, RADIUS * 0.92, SEG, 4);
   foamGeo.rotateX(-Math.PI / 2);
   const foamMat = new THREE.MeshBasicMaterial({
     color: new THREE.Color(land.colors.waterFoam),
@@ -1600,14 +1617,32 @@ function animate() {
     islandGroup.rotation.y = Math.sin(elapsed * 0.1) * 0.025;
   }
 
-  // water + foam + flowers + glow + leaves + lava
+  // water waves + foam + flowers + glow + leaves + lava
   islandGroup.traverse(child => {
-    if (child.userData.isWater && child.material) {
+    // 3D wave animation on water surface
+    if (child.userData.isWaveWater) {
+      const pos = child.geometry.attributes.position;
+      const origY = child.userData.origY;
+      for (let i = 0; i < pos.count; i++) {
+        const wx = pos.getX(i), wz = pos.getZ(i);
+        const wd = Math.sqrt(wx * wx + wz * wz) / RADIUS;
+        // layered waves — large slow swell + smaller ripples
+        let wave = Math.sin(wx * 1.2 + elapsed * 0.8) * 0.025;
+        wave += Math.sin(wz * 1.5 + elapsed * 1.1) * 0.018;
+        wave += Math.sin((wx + wz) * 2.5 + elapsed * 1.6) * 0.008;
+        // dampen waves near island edge
+        const dampen = Math.max(0, Math.min(1, (wd - 0.8) * 3));
+        pos.setY(i, origY[i] + wave * dampen);
+      }
+      pos.needsUpdate = true;
+      child.geometry.computeVertexNormals();
+    }
+    if (child.userData.isWater && child.material && !child.userData.isWaveWater) {
       child.material.opacity = child.material.opacity * 0.95 + (0.45 + Math.sin(elapsed * 1.5) * 0.1) * 0.05;
-      child.position.y = (child.userData.isFoam ? 0.06 : 0.02) + Math.sin(elapsed * 1.1) * 0.012;
     }
     if (child.userData.isFoam && child.material) {
       child.material.opacity = 0.2 + Math.sin(elapsed * 0.8) * 0.12;
+      child.position.y = 0.06 + Math.sin(elapsed * 1.1) * 0.012;
     }
     if (child.userData.isFlower) {
       child.position.y = child.userData.baseY + Math.sin(elapsed * 2 + child.userData.phase) * 0.004;
