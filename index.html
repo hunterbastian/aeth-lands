@@ -118,6 +118,10 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 // ── BIOME PRESETS ─────────────────────────────────
 const LANDS = [
@@ -316,14 +320,73 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 250);
 camera.position.set(8, 6, 8);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
+
+// ── POST-PROCESSING ────────────────────────────
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+
+// Bloom — makes specular, glow spots, lava, and fireflies pop
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.35,  // strength — subtle, not overwhelming
+  0.6,   // radius — how far bloom spreads
+  0.85,  // threshold — only bright areas bloom
+);
+composer.addPass(bloomPass);
+
+// Color grading / vignette / atmospheric pass
+const colorGradeShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uVignetteStrength: { value: 0.35 },
+    uSaturation: { value: 1.08 },
+    uContrast: { value: 1.05 },
+    uBrightness: { value: 0.0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uVignetteStrength;
+    uniform float uSaturation;
+    uniform float uContrast;
+    uniform float uBrightness;
+    varying vec2 vUv;
+    void main() {
+      vec4 tex = texture2D(tDiffuse, vUv);
+      vec3 col = tex.rgb;
+
+      // contrast + brightness
+      col = (col - 0.5) * uContrast + 0.5 + uBrightness;
+
+      // saturation
+      float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      col = mix(vec3(lum), col, uSaturation);
+
+      // vignette — soft darkening at edges
+      vec2 uv = vUv * 2.0 - 1.0;
+      float vig = 1.0 - dot(uv * 0.5, uv * 0.5);
+      vig = smoothstep(0.0, 1.0, vig);
+      col *= mix(1.0 - uVignetteStrength, 1.0, vig);
+
+      gl_FragColor = vec4(col, tex.a);
+    }
+  `,
+};
+const colorGradePass = new ShaderPass(colorGradeShader);
+composer.addPass(colorGradePass);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -350,34 +413,41 @@ const toonGrad5 = createToonGradient(5, 0.34);
 const toonGrad6 = createToonGradient(6, 0.3);
 
 // ── LIGHTING ────────────────────────────────────
-const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.55);
+const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.45);
 scene.add(ambientLight);
 
-const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.4);
+const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.5);
 sunLight.position.set(6, 12, 5);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.mapSize.set(4096, 4096);
 sunLight.shadow.camera.near = 0.1;
-sunLight.shadow.camera.far = 35;
-sunLight.shadow.camera.left = -10;
-sunLight.shadow.camera.right = 10;
-sunLight.shadow.camera.top = 10;
-sunLight.shadow.camera.bottom = -10;
-sunLight.shadow.bias = -0.0008;
-sunLight.shadow.radius = 4;
+sunLight.shadow.camera.far = 40;
+sunLight.shadow.camera.left = -12;
+sunLight.shadow.camera.right = 12;
+sunLight.shadow.camera.top = 12;
+sunLight.shadow.camera.bottom = -12;
+sunLight.shadow.bias = -0.0005;
+sunLight.shadow.normalBias = 0.02;
+sunLight.shadow.radius = 3;
 scene.add(sunLight);
 
-const fillLight = new THREE.DirectionalLight(0xb8c8e8, 0.3);
+const fillLight = new THREE.DirectionalLight(0xb8c8e8, 0.25);
 fillLight.position.set(-5, 4, -4);
 scene.add(fillLight);
 
 // rim light for that Ghibli backlit glow
-const rimLight = new THREE.DirectionalLight(0xffecd0, 0.35);
+const rimLight = new THREE.DirectionalLight(0xffecd0, 0.4);
 rimLight.position.set(-3, 8, -6);
 scene.add(rimLight);
 
+// hemisphere light — sky/ground bounce
 const hemiLight = new THREE.HemisphereLight(0x88a8c8, 0x605040, 0.35);
 scene.add(hemiLight);
+
+// water bounce light — subtle blue-green from below (caustic bounce)
+const bounceLight = new THREE.PointLight(0x68a8c0, 0.3, 15);
+bounceLight.position.set(0, -0.5, 0);
+scene.add(bounceLight);
 
 // ── NOISE ───────────────────────────────────────
 let seed = 42;
@@ -1971,10 +2041,32 @@ function updateDayNight(tod) {
   rimLight.intensity = tod.rimInt;
   fillLight.intensity = tod.fillInt;
 
+  // hemisphere tracks sky/ground
+  hemiLight.color.copy(tod.skyTop).lerp(tod.skyMid, 0.5);
+  hemiLight.groundColor.copy(tod.fog).multiplyScalar(0.6);
+
+  // bounce light color from water
+  bounceLight.color.copy(tod.skyBot).lerp(new THREE.Color(0x68a8c0), 0.3);
+  bounceLight.intensity = tod.sunInt * 0.15;
+
   // sun position arcs across sky
   const t = dayTime % 1;
   const sunAngle = t * Math.PI * 2 - Math.PI * 0.5;
   sunLight.position.set(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 12 + 2, 5);
+
+  // ── POST-PROCESSING adjustments per time of day ──
+  // bloom: stronger at golden hour/sunset, subtler at night
+  const isGolden = (t > 0.5 && t < 0.7);
+  const isNight = (t > 0.75 || t < 0.12);
+  bloomPass.strength = isGolden ? 0.55 : (isNight ? 0.45 : 0.3);
+  bloomPass.threshold = isNight ? 0.7 : 0.85;
+
+  // vignette stronger at night/dusk
+  colorGradePass.uniforms.uVignetteStrength.value = isNight ? 0.5 : 0.3;
+  // slightly desaturate at night
+  colorGradePass.uniforms.uSaturation.value = isNight ? 0.9 : 1.08;
+  // tone mapping exposure: brighter at day, dimmer at night
+  renderer.toneMappingExposure = isNight ? 0.8 : (isGolden ? 1.15 : 1.0);
 }
 
 // ── STARS ────────────────────────────────────────
@@ -2280,7 +2372,7 @@ function animate() {
   });
 
   controls.update();
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 animate();
@@ -2290,6 +2382,8 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+  bloomPass.resolution.set(window.innerWidth, window.innerHeight);
 });
 
 // ── WATER RIPPLE RAYCASTER ─────────────────────
