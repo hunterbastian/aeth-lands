@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aesthetic Lands</title>
+<title>Aethlands</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -625,75 +625,144 @@ function createIsland(land) {
     group.add(root);
   }
 
-  // ── WATER (subdivided for wave animation) ─
-  const waterSize = RADIUS * 3.6;
-  const WATER_SEG = 48;
-  const waterGeo = new THREE.PlaneGeometry(waterSize, waterSize, WATER_SEG, WATER_SEG);
-  waterGeo.rotateX(-Math.PI / 2);
-  // clip to circle
-  const wPos = waterGeo.attributes.position;
+  // ── WATER (Gerstner waves + shader) ────────
   const waterR = RADIUS * 1.8;
+  const WATER_SEG = 72;
+  const waterGeo = new THREE.PlaneGeometry(waterR * 2, waterR * 2, WATER_SEG, WATER_SEG);
+  waterGeo.rotateX(-Math.PI / 2);
+  const wPos = waterGeo.attributes.position;
+
+  // clip to circle + store rest positions
+  const waterOrigX = new Float32Array(wPos.count);
+  const waterOrigZ = new Float32Array(wPos.count);
+  const waterOrigY = new Float32Array(wPos.count);
   for (let i = 0; i < wPos.count; i++) {
-    const wx = wPos.getX(i), wz = wPos.getZ(i);
+    let wx = wPos.getX(i), wz = wPos.getZ(i);
     const wd = Math.sqrt(wx * wx + wz * wz);
     if (wd > waterR) {
       const a = Math.atan2(wz, wx);
-      wPos.setX(i, Math.cos(a) * waterR);
-      wPos.setZ(i, Math.sin(a) * waterR);
+      wx = Math.cos(a) * waterR;
+      wz = Math.sin(a) * waterR;
+      wPos.setX(i, wx); wPos.setZ(i, wz);
     }
+    waterOrigX[i] = wx;
+    waterOrigZ[i] = wz;
+    waterOrigY[i] = 0;
   }
-  // vertex colors — deeper toward edges, shallow near island
-  const waterColors = new Float32Array(wPos.count * 3);
-  const cShallow = new THREE.Color(land.colors.waterShallow);
-  const cMid = new THREE.Color(land.colors.water);
-  const cDeep = new THREE.Color(land.colors.waterDeep);
-  const cFoam = new THREE.Color(land.colors.waterFoam);
-  for (let i = 0; i < wPos.count; i++) {
-    const wx = wPos.getX(i), wz = wPos.getZ(i);
-    const wd = Math.sqrt(wx * wx + wz * wz) / waterR;
-    const islandD = Math.sqrt(wx * wx + wz * wz) / RADIUS;
-    let wc;
-    if (islandD < 0.95) {
-      wc = cFoam.clone().lerp(cShallow, Math.max(0, islandD - 0.6) / 0.35);
-    } else if (wd < 0.5) {
-      wc = cShallow.clone().lerp(cMid, wd * 2);
-    } else {
-      wc = cMid.clone().lerp(cDeep, (wd - 0.5) * 2);
-    }
-    waterColors[i * 3] = wc.r;
-    waterColors[i * 3 + 1] = wc.g;
-    waterColors[i * 3 + 2] = wc.b;
-  }
-  waterGeo.setAttribute('color', new THREE.BufferAttribute(waterColors, 3));
 
-  // store original Y positions for wave animation
-  const waterOrigY = new Float32Array(wPos.count);
-  for (let i = 0; i < wPos.count; i++) waterOrigY[i] = wPos.getY(i);
+  // Gerstner wave parameters — 4 overlapping wave sets
+  const gerstnerWaves = [
+    { dir: [0.6, 0.8],  amp: 0.035, freq: 1.0, speed: 0.9, steep: 0.6 },
+    { dir: [-0.4, 0.9], amp: 0.022, freq: 1.6, speed: 1.3, steep: 0.5 },
+    { dir: [0.9, -0.3], amp: 0.015, freq: 2.4, speed: 1.8, steep: 0.4 },
+    { dir: [-0.7, -0.7],amp: 0.008, freq: 3.8, speed: 2.5, steep: 0.3 },
+  ];
 
-  const waterMat = new THREE.MeshToonMaterial({
-    vertexColors: true,
-    transparent: true, opacity: 0.55,
-    gradientMap: toonGrad4,
+  // water shader — fresnel + specular + depth color + foam
+  const waterUniforms = {
+    uTime: { value: 0 },
+    uShallow: { value: new THREE.Color(land.colors.waterShallow) },
+    uMid: { value: new THREE.Color(land.colors.water) },
+    uDeep: { value: new THREE.Color(land.colors.waterDeep) },
+    uFoamColor: { value: new THREE.Color(land.colors.waterFoam) },
+    uSunDir: { value: new THREE.Vector3(0.5, 0.8, 0.3).normalize() },
+    uSunColor: { value: new THREE.Color(0xfff4e0) },
+    uIslandR: { value: RADIUS },
+    uWaterR: { value: waterR },
+  };
+
+  const waterMat = new THREE.ShaderMaterial({
+    uniforms: waterUniforms,
+    transparent: true,
+    depthWrite: false,
+    vertexShader: `
+      varying vec3 vWorldPos;
+      varying vec3 vNormal;
+      varying float vDepth;
+      varying float vIslandDist;
+      varying float vWaveHeight;
+      void main() {
+        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+        vNormal = normalize(normalMatrix * normal);
+        vDepth = length(position.xz) / ${waterR.toFixed(1)};
+        vIslandDist = length(position.xz) / ${RADIUS.toFixed(1)};
+        vWaveHeight = position.y;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      uniform vec3 uShallow;
+      uniform vec3 uMid;
+      uniform vec3 uDeep;
+      uniform vec3 uFoamColor;
+      uniform vec3 uSunDir;
+      uniform vec3 uSunColor;
+      uniform float uIslandR;
+      uniform float uWaterR;
+      varying vec3 vWorldPos;
+      varying vec3 vNormal;
+      varying float vDepth;
+      varying float vIslandDist;
+      varying float vWaveHeight;
+
+      void main() {
+        // depth-based color
+        vec3 waterCol;
+        if (vIslandDist < 1.0) {
+          waterCol = mix(uFoamColor, uShallow, smoothstep(0.5, 1.0, vIslandDist));
+        } else if (vDepth < 0.5) {
+          waterCol = mix(uShallow, uMid, vDepth * 2.0);
+        } else {
+          waterCol = mix(uMid, uDeep, (vDepth - 0.5) * 2.0);
+        }
+
+        // fresnel — edges more reflective/lighter
+        vec3 viewDir = normalize(cameraPosition - vWorldPos);
+        float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
+        waterCol = mix(waterCol, uFoamColor * 0.8, fresnel * 0.35);
+
+        // specular sun reflection
+        vec3 halfDir = normalize(uSunDir + viewDir);
+        float spec = pow(max(dot(vNormal, halfDir), 0.0), 80.0);
+        waterCol += uSunColor * spec * 0.6;
+
+        // foam on wave crests
+        float foam = smoothstep(0.018, 0.035, vWaveHeight);
+        waterCol = mix(waterCol, uFoamColor, foam * 0.55);
+
+        // shore foam band
+        float shoreFoam = 1.0 - smoothstep(0.88, 1.05, vIslandDist);
+        // animated shore foam pattern
+        float foamPattern = sin(vWorldPos.x * 8.0 + uTime * 1.2) * sin(vWorldPos.z * 8.0 + uTime * 0.9);
+        shoreFoam *= smoothstep(-0.2, 0.3, foamPattern);
+        waterCol = mix(waterCol, uFoamColor, shoreFoam * 0.6);
+
+        // transparency — more opaque near island, transparent at edges
+        float alpha = mix(0.7, 0.35, smoothstep(0.3, 1.0, vDepth));
+        // shore is more opaque
+        alpha = mix(alpha, 0.75, shoreFoam);
+
+        // subtle caustic sparkle
+        float caustic = sin(vWorldPos.x * 15.0 + uTime * 2.0) * sin(vWorldPos.z * 15.0 - uTime * 1.5);
+        caustic = pow(max(caustic, 0.0), 3.0);
+        waterCol += vec3(caustic * 0.08);
+
+        gl_FragColor = vec4(waterCol, alpha);
+      }
+    `,
   });
+
   const water = new THREE.Mesh(waterGeo, waterMat);
   water.position.y = 0.02;
   water.receiveShadow = true;
-  water.userData.isWater = true;
   water.userData.isWaveWater = true;
+  water.userData.origX = waterOrigX;
   water.userData.origY = waterOrigY;
+  water.userData.origZ = waterOrigZ;
+  water.userData.waves = gerstnerWaves;
+  water.userData.uniforms = waterUniforms;
   group.add(water);
-
-  // foam ring at shore
-  const foamGeo = new THREE.RingGeometry(RADIUS * 0.82, RADIUS * 0.92, SEG, 4);
-  foamGeo.rotateX(-Math.PI / 2);
-  const foamMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(land.colors.waterFoam),
-    transparent: true, opacity: 0.35,
-  });
-  const foam = new THREE.Mesh(foamGeo, foamMat);
-  foam.position.y = 0.06;
-  foam.userData.isFoam = true;
-  group.add(foam);
 
   // ── TREES (varied sizes) ─────────────────
   if (land.hasTrees && land.treeCount > 0) {
@@ -1564,25 +1633,158 @@ function switchToLand(index) {
   });
 }
 
-function updateSceneColors(land) {
-  const canvas2d = document.createElement('canvas');
-  canvas2d.width = 1;
-  canvas2d.height = 512;
-  const ctx2d = canvas2d.getContext('2d');
-  const gradient = ctx2d.createLinearGradient(0, 0, 0, 512);
-  gradient.addColorStop(0, land.sky[0]);
-  gradient.addColorStop(0.4, land.sky[1]);
-  gradient.addColorStop(0.75, land.sky[2]);
-  gradient.addColorStop(1, land.skyBottom);
-  ctx2d.fillStyle = gradient;
-  ctx2d.fillRect(0, 0, 1, 512);
-  const skyTex = new THREE.CanvasTexture(canvas2d);
-  skyTex.mapping = THREE.EquirectangularReflectionMapping;
-  scene.background = skyTex;
+// ── DAY/NIGHT CYCLE ─────────────────────────────
+// Full cycle ~80 seconds. Phases: dawn→day→golden→sunset→dusk→night→pre-dawn
+const CYCLE_SPEED = 0.0125; // full cycle per ~80s
+let dayTime = 0.2; // start at morning
 
-  scene.fog = new THREE.FogExp2(new THREE.Color(land.fog), 0.015);
-  ambientLight.color.set(land.ambientColor);
-  sunLight.color.set(land.sunColor);
+// Time-of-day color tints (applied universally on top of biome colors)
+const TOD_PHASES = [
+  // t,    skyTop,     skyMid,     skyBot,     fog,        sunCol,     sunInt, ambCol,     ambInt, rimCol,     rimInt, fillInt
+  { t: 0.00, skyTop: '#1a1028', skyMid: '#2a1838', skyBot: '#483050', fog: '#201828', sunCol: '#8888cc', sunInt: 0.15, ambCol: '#283048', ambInt: 0.2, rimCol: '#6868a8', rimInt: 0.05, fillInt: 0.05 }, // midnight
+  { t: 0.12, skyTop: '#2a2040', skyMid: '#584068', skyBot: '#886878', fog: '#3a2840', sunCol: '#cc8888', sunInt: 0.3, ambCol: '#4a3858', ambInt: 0.25, rimCol: '#cc8888', rimInt: 0.1, fillInt: 0.08 }, // pre-dawn
+  { t: 0.18, skyTop: '#e89870', skyMid: '#f0b888', skyBot: '#f8d8a8', fog: '#e8a880', sunCol: '#ffb880', sunInt: 0.9, ambCol: '#c89078', ambInt: 0.4, rimCol: '#ffc890', rimInt: 0.3, fillInt: 0.15 }, // dawn
+  { t: 0.25, skyTop: '#78b8e8', skyMid: '#a8d0f0', skyBot: '#d0e8f0', fog: '#b8d0e0', sunCol: '#fff4e0', sunInt: 1.4, ambCol: '#c8d0e0', ambInt: 0.55, rimCol: '#ffecd0', rimInt: 0.35, fillInt: 0.3 }, // morning
+  { t: 0.45, skyTop: '#78b8e8', skyMid: '#a8d0f0', skyBot: '#d0e8f0', fog: '#b8d0e0', sunCol: '#fff4e0', sunInt: 1.4, ambCol: '#c8d0e0', ambInt: 0.55, rimCol: '#ffecd0', rimInt: 0.35, fillInt: 0.3 }, // midday
+  { t: 0.55, skyTop: '#d89848', skyMid: '#e8b868', skyBot: '#f0d890', fog: '#d8a868', sunCol: '#ffc868', sunInt: 1.1, ambCol: '#c89858', ambInt: 0.45, rimCol: '#ffd080', rimInt: 0.4, fillInt: 0.2 }, // golden hour
+  { t: 0.63, skyTop: '#b85838', skyMid: '#d87848', skyBot: '#e8a068', fog: '#c07050', sunCol: '#ff8848', sunInt: 0.7, ambCol: '#a06840', ambInt: 0.35, rimCol: '#ff9060', rimInt: 0.3, fillInt: 0.12 }, // sunset
+  { t: 0.72, skyTop: '#382848', skyMid: '#583858', skyBot: '#785060', fog: '#3a2838', sunCol: '#9868a8', sunInt: 0.3, ambCol: '#483858', ambInt: 0.25, rimCol: '#886898', rimInt: 0.1, fillInt: 0.08 }, // dusk
+  { t: 0.82, skyTop: '#101828', skyMid: '#182030', skyBot: '#283040', fog: '#141820', sunCol: '#8888cc', sunInt: 0.15, ambCol: '#283048', ambInt: 0.2, rimCol: '#6868a8', rimInt: 0.05, fillInt: 0.05 }, // night
+  { t: 1.00, skyTop: '#1a1028', skyMid: '#2a1838', skyBot: '#483050', fog: '#201828', sunCol: '#8888cc', sunInt: 0.15, ambCol: '#283048', ambInt: 0.2, rimCol: '#6868a8', rimInt: 0.05, fillInt: 0.05 }, // midnight wrap
+];
+
+function lerpColor(a, b, t) {
+  const ca = new THREE.Color(a), cb = new THREE.Color(b);
+  return ca.lerp(cb, t);
+}
+
+function getTOD(time) {
+  const t = time % 1;
+  let i = 0;
+  for (let j = 1; j < TOD_PHASES.length; j++) {
+    if (TOD_PHASES[j].t > t) { i = j - 1; break; }
+  }
+  const a = TOD_PHASES[i], b = TOD_PHASES[i + 1];
+  const f = (t - a.t) / (b.t - a.t);
+  const smooth = f * f * (3 - 2 * f); // smoothstep
+  return {
+    skyTop: lerpColor(a.skyTop, b.skyTop, smooth),
+    skyMid: lerpColor(a.skyMid, b.skyMid, smooth),
+    skyBot: lerpColor(a.skyBot, b.skyBot, smooth),
+    fog: lerpColor(a.fog, b.fog, smooth),
+    sunCol: lerpColor(a.sunCol, b.sunCol, smooth),
+    sunInt: a.sunInt + (b.sunInt - a.sunInt) * smooth,
+    ambCol: lerpColor(a.ambCol, b.ambCol, smooth),
+    ambInt: a.ambInt + (b.ambInt - a.ambInt) * smooth,
+    rimCol: lerpColor(a.rimCol, b.rimCol, smooth),
+    rimInt: a.rimInt + (b.rimInt - a.rimInt) * smooth,
+    fillInt: a.fillInt + (b.fillInt - a.fillInt) * smooth,
+  };
+}
+
+// sky canvas (reused each frame)
+const skyCanvas = document.createElement('canvas');
+skyCanvas.width = 1;
+skyCanvas.height = 512;
+const skyCtx = skyCanvas.getContext('2d');
+let skyTexture = null;
+
+function updateDayNight(tod) {
+  // sky gradient
+  const grad = skyCtx.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0, '#' + tod.skyTop.getHexString());
+  grad.addColorStop(0.5, '#' + tod.skyMid.getHexString());
+  grad.addColorStop(1, '#' + tod.skyBot.getHexString());
+  skyCtx.fillStyle = grad;
+  skyCtx.fillRect(0, 0, 1, 512);
+  if (!skyTexture) {
+    skyTexture = new THREE.CanvasTexture(skyCanvas);
+    skyTexture.mapping = THREE.EquirectangularReflectionMapping;
+  } else {
+    skyTexture.needsUpdate = true;
+  }
+  scene.background = skyTexture;
+
+  // fog
+  if (!scene.fog) scene.fog = new THREE.FogExp2(tod.fog, 0.015);
+  else scene.fog.color.copy(tod.fog);
+
+  // lights
+  sunLight.color.copy(tod.sunCol);
+  sunLight.intensity = tod.sunInt;
+  ambientLight.color.copy(tod.ambCol);
+  ambientLight.intensity = tod.ambInt;
+  rimLight.color.copy(tod.rimCol);
+  rimLight.intensity = tod.rimInt;
+  fillLight.intensity = tod.fillInt;
+
+  // sun position arcs across sky
+  const t = dayTime % 1;
+  const sunAngle = t * Math.PI * 2 - Math.PI * 0.5;
+  sunLight.position.set(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 12 + 2, 5);
+}
+
+// ── STARS ────────────────────────────────────────
+const starGroup = new THREE.Group();
+scene.add(starGroup);
+{
+  const starCount = 200;
+  const starGeo = new THREE.BufferGeometry();
+  const starPositions = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI * 0.45; // upper hemisphere
+    const r = 40 + Math.random() * 20;
+    starPositions[i * 3] = Math.cos(theta) * Math.sin(phi) * r;
+    starPositions[i * 3 + 1] = Math.cos(phi) * r;
+    starPositions[i * 3 + 2] = Math.sin(theta) * Math.sin(phi) * r;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+  const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0 });
+  const stars = new THREE.Points(starGeo, starMat);
+  stars.userData.isStars = true;
+  starGroup.add(stars);
+}
+
+// ── FIREFLIES (appear at night) ─────────────────
+const fireflyGroup = new THREE.Group();
+scene.add(fireflyGroup);
+{
+  for (let i = 0; i < 25; i++) {
+    const ffGeo = new THREE.SphereGeometry(0.015, 4, 3);
+    const ffMat = new THREE.MeshBasicMaterial({ color: 0xeeff88, transparent: true, opacity: 0 });
+    const ff = new THREE.Mesh(ffGeo, ffMat);
+    ff.position.set(
+      (Math.random() - 0.5) * RADIUS * 2,
+      0.3 + Math.random() * 2.5,
+      (Math.random() - 0.5) * RADIUS * 2,
+    );
+    ff.userData.isFirefly = true;
+    ff.userData.phase = Math.random() * Math.PI * 2;
+    ff.userData.speed = 0.2 + Math.random() * 0.4;
+    ff.userData.baseX = ff.position.x;
+    ff.userData.baseY = ff.position.y;
+    ff.userData.baseZ = ff.position.z;
+    ff.userData.radius = 0.15 + Math.random() * 0.3;
+    fireflyGroup.add(ff);
+  }
+}
+
+function updateSceneColors(land) {
+  // initial setup uses the biome sky — day/night will override each frame
+  const tod = getTOD(dayTime);
+  updateDayNight(tod);
+
+  // update water shader colors for new biome
+  islandGroup.traverse(child => {
+    if (child.userData.isWaveWater && child.userData.uniforms) {
+      const u = child.userData.uniforms;
+      u.uShallow.value.set(land.colors.waterShallow);
+      u.uMid.value.set(land.colors.water);
+      u.uDeep.value.set(land.colors.waterDeep);
+      u.uFoamColor.value.set(land.colors.waterFoam);
+    }
+  });
 }
 
 // ── UI ──────────────────────────────────────────
@@ -1606,10 +1808,46 @@ updateSceneColors(LANDS[0]);
 
 // ── ANIMATION LOOP ──────────────────────────────
 const clock = new THREE.Clock();
+let lastTime = 0;
 
 function animate() {
   requestAnimationFrame(animate);
   const elapsed = clock.getElapsedTime();
+  const dt = elapsed - lastTime;
+  lastTime = elapsed;
+
+  // ── DAY/NIGHT CYCLE UPDATE ──
+  dayTime = (dayTime + CYCLE_SPEED * dt) % 1;
+  const tod = getTOD(dayTime);
+  updateDayNight(tod);
+
+  // night factor (0 = day, 1 = full night)
+  const t = dayTime % 1;
+  const nightFactor = t > 0.72 && t < 0.95 ? 1 : (t >= 0.63 && t <= 0.72 ? (t - 0.63) / 0.09 : (t >= 0.95 || t < 0.12 ? (t >= 0.95 ? 1 - (t - 0.95) / 0.05 : 1 - t / 0.12) : 0));
+
+  // stars visibility
+  starGroup.traverse(child => {
+    if (child.userData.isStars && child.material) {
+      child.material.opacity = nightFactor * 0.8;
+      child.rotation.y = elapsed * 0.003;
+    }
+  });
+
+  // fireflies — glow and drift at night
+  fireflyGroup.traverse(child => {
+    if (child.userData.isFirefly) {
+      const p = child.userData.phase;
+      const spd = child.userData.speed;
+      child.position.x = child.userData.baseX + Math.sin(elapsed * spd * 0.7 + p) * child.userData.radius;
+      child.position.y = child.userData.baseY + Math.sin(elapsed * spd * 1.2 + p) * 0.15;
+      child.position.z = child.userData.baseZ + Math.cos(elapsed * spd * 0.5 + p * 1.3) * child.userData.radius;
+      // blink
+      const blink = Math.sin(elapsed * 2.5 + p) * 0.5 + 0.5;
+      child.material.opacity = nightFactor * blink * 0.9;
+      const s = 1 + blink * 0.4;
+      child.scale.setScalar(s);
+    }
+  });
 
   // gentle breathing
   if (!transitioning) {
@@ -1617,32 +1855,46 @@ function animate() {
     islandGroup.rotation.y = Math.sin(elapsed * 0.1) * 0.025;
   }
 
-  // water waves + foam + flowers + glow + leaves + lava
+  // water Gerstner waves + foam + flowers + glow + leaves + lava
   islandGroup.traverse(child => {
-    // 3D wave animation on water surface
+    // Gerstner wave animation — vertices move in circular orbits
     if (child.userData.isWaveWater) {
       const pos = child.geometry.attributes.position;
+      const origX = child.userData.origX;
       const origY = child.userData.origY;
+      const origZ = child.userData.origZ;
+      const waves = child.userData.waves;
+      const uniforms = child.userData.uniforms;
+
+      // update shader uniforms
+      uniforms.uTime.value = elapsed;
+      uniforms.uSunDir.value.copy(sunLight.position).normalize();
+      uniforms.uSunColor.value.copy(sunLight.color);
+
       for (let i = 0; i < pos.count; i++) {
-        const wx = pos.getX(i), wz = pos.getZ(i);
-        const wd = Math.sqrt(wx * wx + wz * wz) / RADIUS;
-        // layered waves — large slow swell + smaller ripples
-        let wave = Math.sin(wx * 1.2 + elapsed * 0.8) * 0.025;
-        wave += Math.sin(wz * 1.5 + elapsed * 1.1) * 0.018;
-        wave += Math.sin((wx + wz) * 2.5 + elapsed * 1.6) * 0.008;
-        // dampen waves near island edge
-        const dampen = Math.max(0, Math.min(1, (wd - 0.8) * 3));
-        pos.setY(i, origY[i] + wave * dampen);
+        const ox = origX[i], oz = origZ[i];
+        const wd = Math.sqrt(ox * ox + oz * oz) / RADIUS;
+        // dampen near island
+        const dampen = Math.max(0, Math.min(1, (wd - 0.85) * 4));
+
+        let dx = 0, dy = 0, dz = 0;
+        // sum Gerstner waves
+        for (const w of waves) {
+          const dot = w.dir[0] * ox + w.dir[1] * oz;
+          const phase = w.freq * dot - w.speed * elapsed;
+          const s = Math.sin(phase), c = Math.cos(phase);
+          // Gerstner: horizontal displacement + vertical wave
+          dx += w.steep * w.amp * w.dir[0] * c;
+          dz += w.steep * w.amp * w.dir[1] * c;
+          dy += w.amp * s;
+        }
+
+        pos.setX(i, ox + dx * dampen);
+        pos.setY(i, origY[i] + dy * dampen);
+        pos.setZ(i, oz + dz * dampen);
       }
       pos.needsUpdate = true;
       child.geometry.computeVertexNormals();
-    }
-    if (child.userData.isWater && child.material && !child.userData.isWaveWater) {
-      child.material.opacity = child.material.opacity * 0.95 + (0.45 + Math.sin(elapsed * 1.5) * 0.1) * 0.05;
-    }
-    if (child.userData.isFoam && child.material) {
-      child.material.opacity = 0.2 + Math.sin(elapsed * 0.8) * 0.12;
-      child.position.y = 0.06 + Math.sin(elapsed * 1.1) * 0.012;
     }
     if (child.userData.isFlower) {
       child.position.y = child.userData.baseY + Math.sin(elapsed * 2 + child.userData.phase) * 0.004;
