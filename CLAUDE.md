@@ -51,6 +51,8 @@ Single-file app (`index.html`, ~2963 lines). HTML + CSS + JS in one file. No bui
 | Coral Atoll | `coral` | butterflies, branching coral | 0.9 |
 | Spirit Forest | `tall` | glow spots, S-curve trunks, vines | 2.0 |
 | Volcanic | `round` | lava glow, no trees/flowers | 2.2 |
+| Cherry Blossom | `round` | falling petals, butterflies, pink foliage | 1.6 |
+| Frozen Tundra | `crystal` | glow spots, snow, sparse spires, aurora sky | 1.4 |
 
 ### Biome Config Shape
 Every biome in `LANDS[]` has:
@@ -72,10 +74,11 @@ Every biome in `LANDS[]` has:
 - Cliff base: deformed cylinder with horizontal striations, layered earth vertex colors
 
 ### Water (Sea of Thieves-style)
-- 128x128 grid, clipped to circle (radius = RADIUS * 1.8)
+- 160x160 grid, clipped to circle (radius = RADIUS * 2.2)
 - 12 overlapping Gerstner waves with varied direction, amplitude, frequency, speed, steepness
 - Jacobian determinant computed per-vertex for physically-based whitecap foam
 - Vertices updated every frame in JS — `origX/Y/Z` stored in `userData`
+- Analytical Gerstner normals computed per-vertex (replaces `computeVertexNormals()`) — stored as `aAnalyticalNormal` buffer attribute
 - Dampen factor near island (dist < 0.85 from center)
 - Custom GLSL fragment shader:
   - Depth-based color blend (shallow → deep)
@@ -164,6 +167,18 @@ All vegetation uses:
 - Parameters: density 0.96, weight 0.25, decay 0.97, exposure 0.22
 - Intensity peaks during dawn/sunset phases, fades at night/midday
 - Blended additively with the scene
+
+## First-Person Walk Mode
+- Toggle via walk button (top-right, person icon) or **F** key
+- WASD movement, mouse look via pointer lock, Shift to run, ESC to exit
+- Camera Y follows `getTerrainHeight()` + eye height (0.18), smoothly interpolated
+- FOV widens to 65 (from 38) for immersion
+- Head bob when moving (sinusoidal, faster when running)
+- Player clamped to RADIUS * 0.92 to stay on the island surface
+- Vegetation parting: grass, flowers, and bushes within ~0.4 units bend away from player position
+- Island breathing/rotation disabled during walk mode (anti-nausea)
+- Exits automatically on biome switch
+- Disables OrbitControls and cinematic auto-orbit while active
 
 ## Cinematic Camera System
 - **Idle detection**: After 15s of no user interaction, enters cinematic mode

@@ -21,11 +21,14 @@
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
     z-index: 10;
+    max-width: 95vw;
   }
   .land-btn {
-    padding: 10px 22px;
+    padding: 9px 18px;
     border: 2px solid rgba(255,255,255,0.15);
     border-radius: 14px;
     background: rgba(255,255,255,0.12);
@@ -201,6 +204,89 @@
   }
   #cinematic-indicator.visible { opacity: 1; }
 
+  /* Walk Mode Button */
+  #walk-btn {
+    position: fixed;
+    top: 20px;
+    right: 128px;
+    width: 44px;
+    height: 44px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    color: #5a4a3a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.3s ease;
+    opacity: 0;
+    animation: btnEntrance 0.5s ease-out 1.0s forwards;
+  }
+  #walk-btn:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.4);
+    transform: translateY(-2px);
+  }
+  #walk-btn.active {
+    background: rgba(255,255,255,0.35);
+    border-color: rgba(255,255,255,0.6);
+  }
+  #walk-btn svg { width: 20px; height: 20px; }
+
+  /* Walk mode crosshair */
+  #walk-crosshair {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px; height: 24px;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  #walk-crosshair.visible { opacity: 0.5; }
+  #walk-crosshair::before, #walk-crosshair::after {
+    content: '';
+    position: absolute;
+    background: rgba(255,255,255,0.8);
+    border-radius: 1px;
+  }
+  #walk-crosshair::before {
+    width: 2px; height: 14px;
+    top: 5px; left: 11px;
+  }
+  #walk-crosshair::after {
+    width: 14px; height: 2px;
+    top: 11px; left: 5px;
+  }
+
+  /* Walk mode hint */
+  #walk-hint {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px 18px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    background: rgba(30,28,40,0.75);
+    backdrop-filter: blur(12px);
+    color: #d8d0c4;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.3px;
+    z-index: 10;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    white-space: nowrap;
+  }
+  #walk-hint.visible { opacity: 1; }
+
 </style>
 </head>
 <body>
@@ -217,6 +303,14 @@
     <polygon points="6,3 20,12 6,21"/>
   </svg>
 </button>
+<button id="walk-btn" title="Walk Mode (F)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="5" r="2"/>
+    <path d="M10 22V18L7 15V11L10 9H14L17 11V15L14 18V22"/>
+  </svg>
+</button>
+<div id="walk-crosshair"></div>
+<div id="walk-hint">WASD move · Mouse look · ESC exit</div>
 <div id="cinematic-indicator">CINEMATIC</div>
 
 <script type="importmap">
@@ -425,6 +519,61 @@ const LANDS = [
     cloudColor: '#585050', cloudShadow: '#383030',
     ambientColor: '#504040', sunColor: '#e8a880',
     hasLavaGlow: true,
+  },
+  {
+    name: 'Cherry Blossom',
+    desc: 'Pink sakura canopy with drifting petals and warm spring light',
+    treeStyle: 'round',
+    colors: {
+      grass: '#6ab870', grassDark: '#4a9850', grassLight: '#8ad088', grassPale: '#b0e0a8',
+      dirt: '#b08860', dirtDark: '#907048', dirtLight: '#c8a078',
+      sand: '#e8d8b0', sandLight: '#f0e4c8',
+      rock: '#908888', rockDark: '#706868', rockMoss: '#6a9068',
+      snow: '#f8f0f4',
+      water: '#70b8c8', waterShallow: '#98d0d8', waterDeep: '#5098b0', waterFoam: '#d8eef0',
+      trunk: '#6a4838', trunkDark: '#4a2820', trunkLight: '#8a6850',
+      foliage: '#f0a0b8', foliageDark: '#d87898', foliageLight: '#f8c0d0',
+      flowers: '#f8b8d0', flowers2: '#f0d0e0', flowers3: '#e890a8',
+      bush: '#48984a', bushLight: '#60b060',
+      cliff: '#887068', cliffDark: '#685048', cliffMoss: '#5a8850',
+    },
+    sky: ['#c8a0b8', '#e0c0d0', '#e8d8e0'],
+    skyBottom: '#e8dce0',
+    fog: '#d8c0c8',
+    outline: '#4a2830',
+    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
+    mountainHeight: 1.6, treeCount: 55, bushCount: 65,
+    cloudColor: '#f8f0f4', cloudShadow: '#d8c0c8',
+    ambientColor: '#c8a8b8', sunColor: '#ffe8d8',
+    hasLeaves: true,
+    hasButterflies: true,
+  },
+  {
+    name: 'Frozen Tundra',
+    desc: 'Ice-blue expanse with crystal spires under aurora skies',
+    treeStyle: 'crystal',
+    colors: {
+      grass: '#a0b8c8', grassDark: '#80a0b8', grassLight: '#b8d0d8', grassPale: '#d0e0e8',
+      dirt: '#8090a0', dirtDark: '#607888', dirtLight: '#98a8b8',
+      sand: '#c0d0d8', sandLight: '#d0dce4',
+      rock: '#607898', rockDark: '#405870', rockMoss: '#5888a0',
+      snow: '#e8f0ff',
+      water: '#284060', waterShallow: '#406880', waterDeep: '#182840', waterFoam: '#80a0b8',
+      trunk: '#708898', trunkDark: '#506878', trunkLight: '#90a8b0',
+      foliage: '#88c0e0', foliageDark: '#68a0c8', foliageLight: '#a8d8f0',
+      flowers: '#c0d8f0', flowers2: '#a0e8e0', flowers3: '#d8e8f8',
+      bush: '#6888a0', bushLight: '#80a0b0',
+      cliff: '#506878', cliffDark: '#384858', cliffMoss: '#4878a0',
+    },
+    sky: ['#0a1828', '#183048', '#284860'],
+    skyBottom: '#304858',
+    fog: '#283848',
+    outline: '#182028',
+    hasTrees: true, hasFlowers: false, hasSnow: true, hasRocks: true, hasBushes: false,
+    mountainHeight: 1.4, treeCount: 18, bushCount: 0,
+    cloudColor: '#788898', cloudShadow: '#485868',
+    ambientColor: '#607888', sunColor: '#c0d0e0',
+    hasGlowSpots: true,
   },
 ];
 
@@ -1079,7 +1228,7 @@ function createIsland(land) {
 
   // ── WATER (Sea of Thieves style — dramatic Gerstner + Jacobian foam) ──
   const waterR = RADIUS * 2.2;
-  const WATER_SEG = 128;
+  const WATER_SEG = 160;
   const waterGeo = new THREE.PlaneGeometry(waterR * 2, waterR * 2, WATER_SEG, WATER_SEG);
   waterGeo.rotateX(-Math.PI / 2);
   const wPos = waterGeo.attributes.position;
@@ -1105,6 +1254,10 @@ function createIsland(land) {
   // per-vertex Jacobian for foam (computed in JS, passed as attribute)
   const jacobianAttr = new Float32Array(wPos.count);
   waterGeo.setAttribute('aJacobian', new THREE.BufferAttribute(jacobianAttr, 1));
+
+  // analytical normals from Gerstner math (replaces computeVertexNormals)
+  const analyticalNormals = new Float32Array(wPos.count * 3);
+  waterGeo.setAttribute('aAnalyticalNormal', new THREE.BufferAttribute(analyticalNormals, 3));
 
   // Gerstner wave parameters — 12 overlapping sets for SoT-style ocean
   const gerstnerWaves = [
@@ -1154,6 +1307,7 @@ function createIsland(land) {
     depthWrite: false,
     vertexShader: `
       attribute float aJacobian;
+      attribute vec3 aAnalyticalNormal;
       varying vec3 vWorldPos;
       varying vec3 vNormal;
       varying float vDepth;
@@ -1162,7 +1316,7 @@ function createIsland(land) {
       varying float vJacobian;
       void main() {
         vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-        vNormal = normalize(normalMatrix * normal);
+        vNormal = normalize(normalMatrix * aAnalyticalNormal);
         vDepth = length(position.xz) / ${waterR.toFixed(1)};
         vIslandDist = length(position.xz) / ${RADIUS.toFixed(1)};
         vWaveHeight = position.y;
@@ -1233,36 +1387,51 @@ function createIsland(land) {
         // blend both layers with vertex normal
         norm = normalize(norm + norm1 * 0.15 + norm2 * 0.08);
 
-        // ── DEPTH-BASED COLOR — 4-stop gradient for SoT look ──
+        // ── DEPTH-BASED COLOR — smooth 5-stop gradient for SoT look ──
         float depthT = smoothstep(0.0, 1.0, vDepth);
         vec3 waterCol;
         if (vIslandDist < 1.0) {
-          // near island: bright turquoise → shallow
-          float t = smoothstep(0.4, 1.0, vIslandDist);
-          waterCol = mix(uFoamColor * 0.85 + vec3(0.05), uShallow, t);
-        } else if (depthT < 0.25) {
-          waterCol = mix(uShallow, uMid, depthT / 0.25);
+          // near island: bright turquoise → shallow with smooth falloff
+          float t = smoothstep(0.35, 1.05, vIslandDist);
+          vec3 nearCol = uFoamColor * 0.8 + vec3(0.06, 0.08, 0.06);
+          waterCol = mix(nearCol, uShallow, t);
+          // add subtle caustic tint near shore
+          float shoreCaustic = vnoise(vWorldPos.xz * 6.0 + uTime * vec2(0.3, -0.2));
+          waterCol += uShallow * shoreCaustic * (1.0 - t) * 0.12;
+        } else if (depthT < 0.15) {
+          waterCol = mix(uShallow, mix(uShallow, uMid, 0.5), depthT / 0.15);
+        } else if (depthT < 0.35) {
+          waterCol = mix(mix(uShallow, uMid, 0.5), uMid, (depthT - 0.15) / 0.2);
         } else if (depthT < 0.6) {
-          waterCol = mix(uMid, uDeep, (depthT - 0.25) / 0.35);
+          waterCol = mix(uMid, uDeep, (depthT - 0.35) / 0.25);
+        } else if (depthT < 0.85) {
+          waterCol = mix(uDeep, uDeep * 0.55, (depthT - 0.6) / 0.25);
         } else {
-          // very deep — darken further
-          waterCol = mix(uDeep, uDeep * 0.6, (depthT - 0.6) / 0.4);
+          // abyss — very deep, dark
+          waterCol = mix(uDeep * 0.55, uDeep * 0.3, (depthT - 0.85) / 0.15);
         }
 
-        // ── ABSORPTION — deeper water absorbs more light ──
-        vec3 absorbColor = vec3(0.02, 0.06, 0.12); // deep ocean tint
-        float absorb = smoothstep(0.3, 1.0, vDepth);
-        waterCol = mix(waterCol, absorbColor + uDeep * 0.3, absorb * 0.4);
+        // ── ABSORPTION — deeper water absorbs more light, color shifts to deep blue-green ──
+        vec3 absorbColor = vec3(0.01, 0.04, 0.10);
+        float absorb = smoothstep(0.25, 1.0, vDepth);
+        waterCol = mix(waterCol, absorbColor + uDeep * 0.25, absorb * 0.45);
+        // wave trough darkening — troughs are deeper, crests catch light
+        float troughDarken = smoothstep(0.02, -0.03, vWaveHeight);
+        waterCol *= 1.0 - troughDarken * 0.12;
 
         // ── SUBSURFACE SCATTERING — light glowing through wave crests ──
-        float sssView = pow(max(dot(viewDir, -uSunDir), 0.0), 3.0);
-        float sssHeight = smoothstep(0.0, 0.06, vWaveHeight); // only on crests
-        float sssDepth = 1.0 - smoothstep(0.0, 0.4, vDepth);
-        vec3 sssCol = mix(uShallow * 1.3, uFoamColor * 0.9, 0.4);
-        waterCol += sssCol * sssView * sssHeight * sssDepth * 0.45;
-        // additional SSS from wave thin-ness (side view of crests)
-        float sssSide = pow(1.0 - abs(dot(norm, viewDir)), 2.0);
-        waterCol += sssCol * sssSide * sssHeight * 0.15;
+        float sssView = pow(max(dot(viewDir, -uSunDir), 0.0), 2.5);
+        float sssHeight = smoothstep(-0.01, 0.06, vWaveHeight); // on crests + near-crests
+        float sssDepth = 1.0 - smoothstep(0.0, 0.45, vDepth);
+        vec3 sssCol = mix(uShallow * 1.4, uFoamColor * 0.95, 0.35);
+        // primary SSS — looking toward the sun through wave crests
+        waterCol += sssCol * sssView * sssHeight * sssDepth * 0.55;
+        // secondary SSS — wave thin-ness (side view of crests, Ghibli glow)
+        float sssSide = pow(1.0 - abs(dot(norm, viewDir)), 2.5);
+        waterCol += sssCol * sssSide * sssHeight * 0.2;
+        // tertiary SSS — general translucency on shallow water
+        float sssShallow = (1.0 - smoothstep(0.0, 0.2, vDepth)) * sssView;
+        waterCol += uShallow * sssShallow * 0.1;
 
         // ── FRESNEL — Schlick with roughness adjustment ──
         float cosTheta = max(dot(viewDir, norm), 0.0);
@@ -1284,24 +1453,31 @@ function createIsland(land) {
         // ── JACOBIAN FOAM — whitecaps where waves break ──
         float foam = 0.0;
         // Jacobian < 1 means wave is steepening/breaking
-        float jacobianFoam = smoothstep(0.5, -0.3, vJacobian);
+        float jacobianFoam = smoothstep(0.55, -0.35, vJacobian);
         // foam texture — multi-octave noise for realistic breakup
         vec2 foamUV = vWorldPos.xz * 3.0 + uWindDir * uTime * 0.3;
         float foamTex = fbmFoam(foamUV);
         float foamTex2 = fbmFoam(foamUV * 2.3 + vec2(5.7, 3.2));
-        // combine: Jacobian drives where, noise drives shape
-        foam = jacobianFoam * (foamTex * 0.6 + foamTex2 * 0.4);
-        // foam also on high wave crests
-        float crestBoost = smoothstep(0.03, 0.08, vWaveHeight);
-        foam += crestBoost * foamTex * 0.3;
+        float foamTex3 = fbmFoam(foamUV * 4.5 + vec2(11.3, -7.1)); // fine detail layer
+        // combine: Jacobian drives where, multi-scale noise drives shape
+        foam = jacobianFoam * (foamTex * 0.45 + foamTex2 * 0.35 + foamTex3 * 0.2);
+        // dissolving foam edges — noise-driven breakup at boundaries
+        float dissolveMask = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.2, -0.15));
+        foam *= smoothstep(0.2, 0.55, dissolveMask + foam * 0.5);
+        // foam also on high wave crests — sharper threshold
+        float crestBoost = smoothstep(0.025, 0.07, vWaveHeight);
+        foam += crestBoost * foamTex * 0.35;
         // wind-driven foam streaks on open water
         float windDot = dot(normalize(vWorldPos.xz + vec2(0.001)), uWindDir);
-        float streak = smoothstep(0.5, 0.9, windDot) * uWindStrength;
+        float streak = smoothstep(0.45, 0.88, windDot) * uWindStrength;
         float streakTex = vnoise(vWorldPos.xz * vec2(2.0, 8.0) + uWindDir * uTime * 0.5);
-        foam += streak * streakTex * 0.15;
-        // foam color: bright white with slight biome tint
+        float streakFine = vnoise(vWorldPos.xz * vec2(4.0, 16.0) + uWindDir * uTime * 0.7);
+        foam += streak * (streakTex * 0.7 + streakFine * 0.3) * 0.18;
+        // foam color: bright white with biome tint + slight iridescence on edges
         vec3 foamCol = mix(uFoamColor, vec3(1.0), 0.6);
-        waterCol = mix(waterCol, foamCol, clamp(foam, 0.0, 1.0) * 0.8);
+        float foamEdge = smoothstep(0.1, 0.3, foam) * (1.0 - smoothstep(0.3, 0.6, foam));
+        foamCol += uShallow * foamEdge * 0.15; // subtle color at foam boundaries
+        waterCol = mix(waterCol, foamCol, clamp(foam, 0.0, 1.0) * 0.82);
 
         // ── SHORE SPLASH — waves crashing against island cliffs ──
         float shoreT = 1.0 - smoothstep(0.82, 1.15, vIslandDist);
@@ -1353,12 +1529,16 @@ function createIsland(land) {
         waterCol += vec3(spray * 0.3) * uSunColor;
 
         // ── TRANSPARENCY — deeper = more opaque (absorption), foam = opaque ──
-        float alpha = mix(0.82, 0.4, smoothstep(0.15, 0.9, vDepth));
-        alpha = max(alpha, fresnel * 0.6 + 0.3);
+        float alpha = mix(0.85, 0.35, smoothstep(0.12, 0.85, vDepth));
+        alpha = max(alpha, fresnel * 0.55 + 0.35);
         // foam makes water opaque
-        alpha = mix(alpha, 0.95, clamp(foam + shoreFoam, 0.0, 1.0));
-        // near island is more opaque (seeing the ground through)
-        if (vIslandDist < 1.0) alpha = mix(alpha, 0.6, 1.0 - vIslandDist);
+        float totalFoam = clamp(foam + shoreFoam, 0.0, 1.0);
+        alpha = mix(alpha, 0.96, totalFoam);
+        // near island — semi-transparent to see the seafloor tint
+        if (vIslandDist < 1.0) {
+          float nearAlpha = mix(0.55, 0.75, vIslandDist);
+          alpha = mix(nearAlpha, alpha, smoothstep(0.85, 1.05, vIslandDist));
+        }
 
         // ── CAUSTICS — voronoi cell pattern ──
         float caustic = 0.0;
@@ -1416,6 +1596,7 @@ function createIsland(land) {
   water.userData.waves = gerstnerWaves;
   water.userData.uniforms = waterUniforms;
   water.userData.jacobian = jacobianAttr;
+  water.userData.analyticalNormals = analyticalNormals;
   group.add(water);
 
   // ── TREES (varied sizes) ─────────────────
@@ -2236,6 +2417,7 @@ let transitionProgress = 0;
 
 function switchToLand(index) {
   if (index === currentLandIndex || transitioning) return;
+  if (walkMode) exitWalkMode();
   transitioning = true;
   transitionProgress = 0;
   const targetIndex = index;
@@ -2587,10 +2769,13 @@ function animate() {
     }
   });
 
-  // gentle breathing
-  if (!transitioning) {
+  // gentle breathing (disabled in walk mode — would cause motion sickness)
+  if (!transitioning && !walkMode) {
     islandGroup.position.y = Math.sin(elapsed * 0.35) * 0.05;
     islandGroup.rotation.y = Math.sin(elapsed * 0.1) * 0.025;
+  } else if (walkMode) {
+    islandGroup.position.y = 0;
+    islandGroup.rotation.y = 0;
   }
 
   // water Gerstner waves + foam + flowers + glow + leaves + lava
@@ -2617,6 +2802,8 @@ function animate() {
 
       const jacobian = child.userData.jacobian;
 
+      const aNormals = child.userData.analyticalNormals;
+
       for (let i = 0; i < pos.count; i++) {
         const ox = origX[i], oz = origZ[i];
         const wd = Math.sqrt(ox * ox + oz * oz) / RADIUS;
@@ -2626,6 +2813,8 @@ function animate() {
         let dx = 0, dy = 0, dz = 0;
         // Jacobian partial derivatives for foam computation
         let ddx_dx = 0, ddz_dz = 0, ddx_dz = 0, ddz_dx = 0;
+        // analytical normal accumulation
+        let nx = 0, ny = 0, nz = 0;
 
         // sum Gerstner waves — wind modulates amplitude
         for (const w of waves) {
@@ -2648,6 +2837,13 @@ function animate() {
           ddz_dz -= w.dir[1] * w.dir[1] * qfa * (-s);
           ddx_dz -= w.dir[0] * w.dir[1] * qfa * (-s);
           ddz_dx -= w.dir[1] * w.dir[0] * qfa * (-s);
+
+          // analytical Gerstner normal components
+          // N = (0,1,0) - sum( dir * freq * amp * cos(phase), 0, dir * freq * amp * cos(phase) )
+          // with steepness: N = (-dx_steep*freq*amp*cos, 1, -dz_steep*freq*amp*cos)
+          const wa = w.freq * amp * c;
+          nx -= w.dir[0] * wa;
+          nz -= w.dir[1] * wa;
         }
 
         pos.setX(i, ox + dx * dampen);
@@ -2657,24 +2853,45 @@ function animate() {
         // Jacobian determinant — < 1 means wave breaking
         const J = (1.0 + ddx_dx) * (1.0 + ddz_dz) - ddx_dz * ddz_dx;
         jacobian[i] = J * dampen + (1.0 - dampen); // relax to 1 near island
+
+        // analytical normal — dampen blends toward flat (0,1,0) near island
+        const fnx = nx * dampen;
+        const fny = 1.0;
+        const fnz = nz * dampen;
+        const invLen = 1.0 / Math.sqrt(fnx * fnx + fny * fny + fnz * fnz);
+        aNormals[i * 3] = fnx * invLen;
+        aNormals[i * 3 + 1] = fny * invLen;
+        aNormals[i * 3 + 2] = fnz * invLen;
       }
       pos.needsUpdate = true;
       child.geometry.attributes.aJacobian.needsUpdate = true;
-      child.geometry.computeVertexNormals();
+      child.geometry.attributes.aAnalyticalNormal.needsUpdate = true;
     }
     if (child.userData.isFlower) {
       child.position.y = child.userData.baseY + Math.sin(elapsed * 2 + child.userData.phase) * 0.004;
       // wind bending
       const wf = getWindAt(child.position.x, child.position.z, elapsed);
       const flex = child.userData.windFlex || 0;
-      child.rotation.x = (child.userData.baseRotX || 0) + wind.dir.y * wf * flex;
-      child.rotation.z = (child.userData.baseRotZ || 0) - wind.dir.x * wf * flex;
+      let frx = (child.userData.baseRotX || 0) + wind.dir.y * wf * flex;
+      let frz = (child.userData.baseRotZ || 0) - wind.dir.x * wf * flex;
+      if (walkMode) {
+        const push = getVegetationPush(child.position.x, child.position.z, 0.35, 0.5);
+        if (push) { frx += push.rx; frz += push.rz; }
+      }
+      child.rotation.x = frx;
+      child.rotation.z = frz;
     }
-    // wind on grass blades
+    // wind on grass blades + walk mode parting
     if (child.userData.isGrass) {
       const wf = getWindAt(child.position.x, child.position.z, elapsed);
-      child.rotation.x = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
-      child.rotation.z = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
+      let rx = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
+      let rz = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
+      if (walkMode) {
+        const push = getVegetationPush(child.position.x, child.position.z, 0.4, 0.6);
+        if (push) { rx += push.rx; rz += push.rz; }
+      }
+      child.rotation.x = rx;
+      child.rotation.z = rz;
     }
     // wind on trees
     if (child.userData.isTree) {
@@ -2685,11 +2902,17 @@ function animate() {
       child.rotation.x = child.userData.baseRotX + wind.dir.y * (sway + secondary);
       child.rotation.z = child.userData.baseRotZ - wind.dir.x * (sway + secondary);
     }
-    // wind on bushes
+    // wind on bushes + walk mode parting
     if (child.userData.isBush) {
       const wf = getWindAt(child.position.x, child.position.z, elapsed);
-      child.rotation.x = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
-      child.rotation.z = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
+      let brx = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
+      let brz = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
+      if (walkMode) {
+        const push = getVegetationPush(child.position.x, child.position.z, 0.5, 0.35);
+        if (push) { brx += push.rx; brz += push.rz; }
+      }
+      child.rotation.x = brx;
+      child.rotation.z = brz;
     }
     if (child.userData.isGlow && child.material) {
       child.material.opacity = 0.45 + Math.sin(elapsed * 1.6 + child.userData.phase) * 0.3;
@@ -2788,12 +3011,17 @@ function animate() {
     rimCol.b *= 0.5;
   }
 
+  // ── WALK MODE UPDATE ──
+  if (walkMode) {
+    updateWalkMode(elapsed, dt);
+  }
+
   // ── CINEMATIC CAMERA UPDATE ──
-  if (!transitioning) {
+  if (!transitioning && !walkMode) {
     updateCinematicCamera(elapsed, dt);
   }
 
-  controls.update();
+  if (!walkMode) controls.update();
   composer.render();
 }
 
@@ -2849,6 +3077,7 @@ const IDLE_TIMEOUT = 15; // seconds
 const savedCameraState = { pos: new THREE.Vector3(), target: new THREE.Vector3() };
 
 function resetIdleTimer() {
+  if (walkMode) return; // walk mode handles its own input
   lastInteractionTime = clock.getElapsedTime();
   if (cinematicMode && !tourMode) {
     exitCinematicMode();
@@ -2899,6 +3128,221 @@ tourBtn.addEventListener('click', (e) => {
 // prevent tour button from triggering idle exit
 tourBtn.addEventListener('mousedown', (e) => e.stopPropagation());
 
+// ── WALK MODE ──────────────────────────────────
+let walkMode = false;
+const walkPos = new THREE.Vector3(0, 0, 0);
+let walkYaw = 0;
+let walkPitch = 0;
+const walkKeys = { w: false, a: false, s: false, d: false, shift: false };
+const WALK_SPEED = 1.2;
+const WALK_RUN_MULT = 1.8;
+const WALK_EYE_HEIGHT = 0.18;
+const WALK_BOB_SPEED = 8;
+const WALK_BOB_AMP = 0.006;
+let walkBobPhase = 0;
+let walkHeadBob = 0;
+
+// reusable scratch objects (avoid per-frame allocations)
+const _walkForward = new THREE.Vector3();
+const _walkRight = new THREE.Vector3();
+const _walkMove = new THREE.Vector3();
+const _walkQYaw = new THREE.Quaternion();
+const _walkQPitch = new THREE.Quaternion();
+const _walkAxisY = new THREE.Vector3(0, 1, 0);
+const _walkAxisX = new THREE.Vector3(1, 0, 0);
+const _walkLookDir = new THREE.Vector3();
+
+// vegetation parting helper — shared by grass, flowers, bushes
+function getVegetationPush(childX, childZ, radius, strength) {
+  const dx = childX - walkPos.x;
+  const dz = childZ - walkPos.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  if (dist >= radius) return null;
+  const pushStr = (1 - dist / radius) * strength;
+  const angle = Math.atan2(dz, dx);
+  return { rx: Math.sin(angle) * pushStr, rz: -Math.cos(angle) * pushStr };
+}
+
+const walkBtn = document.getElementById('walk-btn');
+const walkCrosshair = document.getElementById('walk-crosshair');
+const walkHint = document.getElementById('walk-hint');
+let walkHintTimer = 0;
+
+function enterWalkMode() {
+  if (walkMode) return;
+  // exit cinematic if active
+  if (cinematicMode) exitCinematicMode();
+  walkMode = true;
+  controls.enabled = false;
+  walkBtn.classList.add('active');
+  walkCrosshair.classList.add('visible');
+  walkHint.classList.add('visible');
+  walkHintTimer = 0;
+
+  // start at a nice position on the island — slightly off center
+  const land = LANDS[currentLandIndex];
+  walkPos.set(0.5, 0, 0.5);
+  const h = getTerrainHeight(walkPos.x, walkPos.z, land);
+  walkPos.y = h + WALK_EYE_HEIGHT;
+
+  // face toward center
+  walkYaw = Math.atan2(-walkPos.z, -walkPos.x);
+  walkPitch = 0;
+
+  // wider FOV for immersion
+  camera.fov = 65;
+  camera.updateProjectionMatrix();
+
+  // request pointer lock for mouse look
+  renderer.domElement.requestPointerLock();
+}
+
+function exitWalkMode() {
+  if (!walkMode) return;
+  walkMode = false;
+  controls.enabled = true;
+  walkBtn.classList.remove('active');
+  walkCrosshair.classList.remove('visible');
+  walkHint.classList.remove('visible');
+
+  // restore camera
+  camera.fov = 38;
+  camera.updateProjectionMatrix();
+  camera.position.set(8, 6, 8);
+  controls.target.set(0, 0.8, 0);
+
+  // release pointer lock
+  if (document.pointerLockElement) document.exitPointerLock();
+
+  // reset idle timer
+  lastInteractionTime = clock.getElapsedTime();
+}
+
+walkBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (walkMode) exitWalkMode();
+  else enterWalkMode();
+});
+walkBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+
+// keyboard input for walk mode
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'f' && !e.ctrlKey && !e.metaKey) {
+    if (walkMode) exitWalkMode();
+    else enterWalkMode();
+    return;
+  }
+  if (!walkMode) return;
+  const k = e.key.toLowerCase();
+  if (k === 'w') walkKeys.w = true;
+  if (k === 'a') walkKeys.a = true;
+  if (k === 's') walkKeys.s = true;
+  if (k === 'd') walkKeys.d = true;
+  if (k === 'shift') walkKeys.shift = true;
+  if (k === 'escape') exitWalkMode();
+});
+
+window.addEventListener('keyup', (e) => {
+  if (!walkMode) return;
+  const k = e.key.toLowerCase();
+  if (k === 'w') walkKeys.w = false;
+  if (k === 'a') walkKeys.a = false;
+  if (k === 's') walkKeys.s = false;
+  if (k === 'd') walkKeys.d = false;
+  if (k === 'shift') walkKeys.shift = false;
+});
+
+// mouse look via pointer lock
+document.addEventListener('mousemove', (e) => {
+  if (!walkMode || !document.pointerLockElement) return;
+  walkYaw -= e.movementX * 0.002;
+  walkPitch -= e.movementY * 0.002;
+  walkPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.5, walkPitch));
+});
+
+// re-request pointer lock on click during walk mode
+renderer.domElement.addEventListener('click', () => {
+  if (walkMode && !document.pointerLockElement) {
+    renderer.domElement.requestPointerLock();
+  }
+});
+
+// re-show hint when pointer lock is released mid-walk
+document.addEventListener('pointerlockchange', () => {
+  if (walkMode && !document.pointerLockElement) {
+    walkHint.textContent = 'Click to re-engage \u00b7 ESC to exit';
+    walkHint.classList.add('visible');
+    walkHintTimer = 0;
+  }
+});
+
+function updateWalkMode(elapsed, dt) {
+  if (!walkMode) return;
+
+  // hide hint after 4 seconds
+  walkHintTimer += dt;
+  if (walkHintTimer > 4 && walkHint.classList.contains('visible')) {
+    walkHint.classList.remove('visible');
+  }
+
+  const land = LANDS[currentLandIndex];
+  const speed = WALK_SPEED * (walkKeys.shift ? WALK_RUN_MULT : 1.0) * dt;
+
+  // movement direction from yaw (reuse scratch vectors)
+  _walkForward.set(-Math.sin(walkYaw), 0, -Math.cos(walkYaw));
+  _walkRight.set(Math.cos(walkYaw), 0, -Math.sin(walkYaw));
+
+  let moving = false;
+  _walkMove.set(0, 0, 0);
+  if (walkKeys.w) { _walkMove.add(_walkForward); moving = true; }
+  if (walkKeys.s) { _walkMove.sub(_walkForward); moving = true; }
+  if (walkKeys.a) { _walkMove.sub(_walkRight); moving = true; }
+  if (walkKeys.d) { _walkMove.add(_walkRight); moving = true; }
+
+  if (_walkMove.lengthSq() > 0) {
+    _walkMove.normalize().multiplyScalar(speed);
+    const newX = walkPos.x + _walkMove.x;
+    const newZ = walkPos.z + _walkMove.z;
+
+    // clamp to island surface (stay within RADIUS * 0.92 to avoid cliff edge)
+    const dist = Math.sqrt(newX * newX + newZ * newZ);
+    const maxR = RADIUS * 0.92;
+    if (dist < maxR) {
+      walkPos.x = newX;
+      walkPos.z = newZ;
+    } else {
+      // slide along the boundary
+      const angle = Math.atan2(newZ, newX);
+      walkPos.x = Math.cos(angle) * maxR;
+      walkPos.z = Math.sin(angle) * maxR;
+    }
+  }
+
+  // terrain following with smooth interpolation
+  const targetY = getTerrainHeight(walkPos.x, walkPos.z, land) + WALK_EYE_HEIGHT;
+  walkPos.y += (targetY - walkPos.y) * Math.min(1, dt * 12); // smooth step up/down
+
+  // head bob when moving
+  if (moving) {
+    const bobSpeed = walkKeys.shift ? WALK_BOB_SPEED * 1.3 : WALK_BOB_SPEED;
+    walkBobPhase += bobSpeed * dt;
+    walkHeadBob = Math.sin(walkBobPhase) * WALK_BOB_AMP;
+  } else {
+    walkHeadBob *= 0.9; // dampen to zero
+    walkBobPhase = 0;
+  }
+
+  // apply camera position + rotation (reuse scratch quaternions)
+  camera.position.set(walkPos.x, walkPos.y + walkHeadBob, walkPos.z);
+  _walkQYaw.setFromAxisAngle(_walkAxisY, walkYaw);
+  _walkQPitch.setFromAxisAngle(_walkAxisX, walkPitch);
+  camera.quaternion.copy(_walkQYaw).multiply(_walkQPitch);
+
+  // keep controls target in sync (for smooth exit)
+  _walkLookDir.set(0, 0, -1).applyQuaternion(camera.quaternion);
+  controls.target.copy(camera.position).add(_walkLookDir.multiplyScalar(2));
+}
+
 const tourCameraMoves = [
   { dist: 7,  height: 3.5, lookY: 1.0 }, // close mid
   { dist: 10, height: 5,   lookY: 0.8 }, // pull back
@@ -2912,8 +3356,8 @@ const tourCameraMoves = [
 function updateCinematicCamera(elapsed, dt) {
   const timeSinceInteraction = elapsed - lastInteractionTime;
 
-  // auto-enter cinematic after idle timeout
-  if (!cinematicMode && timeSinceInteraction > IDLE_TIMEOUT) {
+  // auto-enter cinematic after idle timeout (not during walk mode)
+  if (!cinematicMode && !walkMode && timeSinceInteraction > IDLE_TIMEOUT) {
     enterCinematicMode();
   }
 
