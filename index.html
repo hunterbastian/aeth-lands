@@ -644,7 +644,7 @@ const fillLight = new THREE.DirectionalLight(0xb8c8e8, 0.25);
 fillLight.position.set(-5, 4, -4);
 scene.add(fillLight);
 
-// rim light for that Ghibli backlit glow
+// rim light for that Ghibli backlit glow — tracks opposite sun
 const rimLight = new THREE.DirectionalLight(0xffecd0, 0.4);
 rimLight.position.set(-3, 8, -6);
 scene.add(rimLight);
@@ -658,25 +658,86 @@ const bounceLight = new THREE.PointLight(0x68a8c0, 0.3, 15);
 bounceLight.position.set(0, -0.5, 0);
 scene.add(bounceLight);
 
-// ── SUN ORB (visible sun + god ray source) ──────
-const sunOrbGroup = new THREE.Group();
-// core bright disk
-const sunDiskGeo = new THREE.SphereGeometry(1.5, 24, 16);
-const sunDiskMat = new THREE.MeshBasicMaterial({ color: 0xfffae0, transparent: true, opacity: 0.0 });
-const sunDisk = new THREE.Mesh(sunDiskGeo, sunDiskMat);
-sunOrbGroup.add(sunDisk);
-// inner glow halo
-const sunGlowGeo = new THREE.SphereGeometry(2.8, 16, 12);
-const sunGlowMat = new THREE.MeshBasicMaterial({ color: 0xfff4d0, transparent: true, opacity: 0.0, depthWrite: false });
-const sunGlow = new THREE.Mesh(sunGlowGeo, sunGlowMat);
-sunOrbGroup.add(sunGlow);
-// outer corona
-const sunCoronaGeo = new THREE.SphereGeometry(5.0, 12, 8);
-const sunCoronaMat = new THREE.MeshBasicMaterial({ color: 0xffe8b0, transparent: true, opacity: 0.0, depthWrite: false });
-const sunCorona = new THREE.Mesh(sunCoronaGeo, sunCoronaMat);
-sunOrbGroup.add(sunCorona);
-sunOrbGroup.position.copy(sunLight.position).multiplyScalar(3);
-scene.add(sunOrbGroup);
+// canopy glow — warm light from above that illuminates under leaves
+const canopyLight = new THREE.PointLight(0xd8c898, 0.0, 8);
+canopyLight.position.set(0, 3.5, 0);
+scene.add(canopyLight);
+
+// moonlight — cool blue directional at night
+const moonLight = new THREE.DirectionalLight(0x8090c0, 0.0);
+moonLight.position.set(-4, 10, -3);
+scene.add(moonLight);
+
+// ── ANIME SUN (billboard with custom shader) ────
+const sunShaderMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  side: THREE.DoubleSide,
+  uniforms: {
+    uColor: { value: new THREE.Color(0xfffae0) },
+    uRimColor: { value: new THREE.Color(0xffcc70) },
+    uTime: { value: 0.0 },
+    uOpacity: { value: 0.0 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    uniform vec3 uRimColor;
+    uniform float uTime;
+    uniform float uOpacity;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 center = vUv - 0.5;
+      float dist = length(center);
+      float angle = atan(center.y, center.x);
+
+      // ── CORE DISC — crisp anime circle with soft edge ──
+      float core = 1.0 - smoothstep(0.08, 0.12, dist);
+
+      // ── INNER GLOW — warm gradient ring ──
+      float glow = 1.0 - smoothstep(0.05, 0.28, dist);
+      glow = glow * glow; // soften falloff
+
+      // ── RAY SPIKES — animated radiating beams ──
+      // primary rays (8 spikes, slow rotation)
+      float rays1 = pow(max(0.0, cos(angle * 8.0 + uTime * 0.3)), 12.0);
+      // secondary rays (12 spikes, counter-rotation)
+      float rays2 = pow(max(0.0, cos(angle * 12.0 - uTime * 0.2 + 0.5)), 16.0);
+      // tertiary fine rays (24 spikes, shimmer)
+      float rays3 = pow(max(0.0, cos(angle * 24.0 + uTime * 0.5)), 20.0);
+
+      // rays fade with distance from center
+      float rayMask = smoothstep(0.4, 0.08, dist);
+      float rayGlow = (rays1 * 0.5 + rays2 * 0.25 + rays3 * 0.12) * rayMask;
+
+      // ── OUTER HAZE — very soft atmospheric scatter ──
+      float haze = exp(-dist * dist * 8.0) * 0.3;
+
+      // ── BREATHING — subtle pulse ──
+      float pulse = 1.0 + sin(uTime * 1.5) * 0.04;
+
+      // combine layers
+      float alpha = (core * 0.95 + glow * 0.5 + rayGlow * 0.6 + haze) * pulse * uOpacity;
+
+      // color: bright white core → warm rim color in glow/rays
+      vec3 col = mix(uRimColor, uColor, core * 0.7 + 0.3);
+      // rays tinted warmer
+      col = mix(col, uRimColor, rayGlow * 0.5);
+
+      gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
+    }
+  `,
+});
+const sunBillboard = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), sunShaderMat);
+sunBillboard.position.copy(sunLight.position).multiplyScalar(3);
+scene.add(sunBillboard);
 
 // ── NOISE ───────────────────────────────────────
 let seed = 42;
@@ -2327,21 +2388,54 @@ function updateDayNight(tod) {
   const sunAngle = t * Math.PI * 2 - Math.PI * 0.5;
   sunLight.position.set(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 12 + 2, 5);
 
-  // ── POST-PROCESSING adjustments per time of day ──
-  // bloom: stronger at golden hour/sunset, subtler at night
-  const isGolden = (t > 0.5 && t < 0.7);
-  const isNight = (t > 0.75 || t < 0.12);
-  bloomPass.strength = isGolden ? 0.55 : (isNight ? 0.45 : 0.3);
-  bloomPass.threshold = isNight ? 0.7 : 0.85;
+  // ── RIM LIGHT tracks opposite sun — Ghibli backlit edge glow ──
+  rimLight.position.set(-Math.cos(sunAngle) * 6, 8, -5);
+  // rim gets warmer and stronger at golden hour
+  const goldenFactor = Math.max(0,
+    Math.max(
+      1 - Math.abs(t - 0.6) / 0.1,   // sunset golden
+      1 - Math.abs(t - 0.18) / 0.06,  // dawn golden
+    )
+  );
+  rimLight.intensity = tod.rimInt + goldenFactor * 0.4;
 
-  // vignette stronger at night/dusk
-  colorGradePass.uniforms.uVignetteStrength.value = isNight ? 0.5 : 0.3;
-  // slightly desaturate at night
-  colorGradePass.uniforms.uSaturation.value = isNight ? 0.9 : 1.08;
+  // ── FILL LIGHT shifts color with TOD ──
+  // cool blue at night, warm at golden hour, neutral at day
+  const nightFade = t > 0.72 ? Math.min(1, (t - 0.72) / 0.08) : (t < 0.14 ? Math.min(1, (0.14 - t) / 0.08) : 0);
+  fillLight.color.set(0xb8c8e8).lerp(new THREE.Color(0x4060a0), nightFade);
+  fillLight.color.lerp(new THREE.Color(0xe8c898), goldenFactor * 0.6);
+
+  // ── CANOPY GLOW — warm bounce light in the trees ──
+  // strongest at golden hour, subtle during day, off at night
+  const dayAmount = Math.max(0, Math.sin(sunAngle));
+  canopyLight.intensity = dayAmount * (0.25 + goldenFactor * 0.5);
+  canopyLight.color.set(0xd8c898).lerp(new THREE.Color(0xf0a060), goldenFactor);
+
+  // ── MOONLIGHT — cool blue directional at night ──
+  moonLight.intensity = nightFade * 0.35;
+  moonLight.position.set(-Math.cos(sunAngle + Math.PI) * 8, 10, -3);
+
+  // ── AMBIENT drops for dramatic shadows at golden hour ──
+  ambientLight.intensity = tod.ambInt * (1.0 - goldenFactor * 0.3);
+
+  // ── POST-PROCESSING — smooth curves instead of hard switches ──
+  // golden hour: smooth bell curve centered at t=0.6 (sunset) and t=0.18 (dawn)
+  // night: smooth ramp
+  const bloomGolden = goldenFactor * 0.55;
+  const bloomNight = nightFade * 0.45;
+  const bloomDay = (1.0 - goldenFactor) * (1.0 - nightFade) * 0.3;
+  bloomPass.strength = Math.max(bloomDay, Math.max(bloomGolden, bloomNight));
+  bloomPass.threshold = 0.85 - nightFade * 0.15;
+
+  // vignette: smooth ramp, stronger at night and golden
+  colorGradePass.uniforms.uVignetteStrength.value = 0.25 + nightFade * 0.25 + goldenFactor * 0.1;
+  // saturation: slightly desaturate at night, boost at golden
+  colorGradePass.uniforms.uSaturation.value = 1.08 - nightFade * 0.18 + goldenFactor * 0.08;
   colorGradePass.uniforms.uTime.value = performance.now() * 0.001;
-  colorGradePass.uniforms.uTemperature.value = isGolden ? 0.6 : (isNight ? -0.3 : 0.1);
-  // tone mapping exposure: brighter at day, dimmer at night
-  renderer.toneMappingExposure = isNight ? 0.8 : (isGolden ? 1.15 : 1.0);
+  // temperature: warm at golden, cool at night, neutral at day
+  colorGradePass.uniforms.uTemperature.value = goldenFactor * 0.7 - nightFade * 0.35 + 0.05;
+  // exposure: smooth curve
+  renderer.toneMappingExposure = 1.0 + goldenFactor * 0.2 - nightFade * 0.2;
 }
 
 // ── STARS ────────────────────────────────────────
@@ -2646,10 +2740,13 @@ function animate() {
     if (cloud.position.x < -18) cloud.position.x = 18;
   });
 
-  // ── SUN ORB + GOD RAY UPDATE ──
+  // ── ANIME SUN + GOD RAY UPDATE ──
   {
     const sunPos3 = sunLight.position.clone();
-    sunOrbGroup.position.copy(sunPos3).multiplyScalar(3);
+    // position sun billboard and face camera
+    sunBillboard.position.copy(sunPos3).multiplyScalar(3);
+    sunBillboard.quaternion.copy(camera.quaternion); // always face camera
+
     // project sun to screen space
     const sunNDC = sunPos3.clone().project(camera);
     const sunScreenX = sunNDC.x * 0.5 + 0.5;
@@ -2678,19 +2775,17 @@ function animate() {
     godRayPass.uniforms.uIntensity.value = godRayIntensity * 0.6;
     godRayPass.uniforms.uSunColor.value.set(sunLight.color.r, sunLight.color.g, sunLight.color.b);
 
-    // sun visibility — bright when above horizon, hidden at night
+    // sun shader uniforms
     const sunAboveHorizon = sunLight.position.y > 0 ? 1.0 : 0.0;
-    const sunDayFactor = Math.max(0, Math.min(1, sunLight.position.y / 5.0)); // fade near horizon
-    // core disk: always visible when sun is up, brighter at golden hour
-    const coreOpacity = sunAboveHorizon * (0.7 + godRayIntensity * 0.3);
-    sunDiskMat.opacity = coreOpacity;
-    sunDiskMat.color.copy(sunLight.color);
-    // glow halo: soft, fades with elevation
-    sunGlowMat.opacity = sunAboveHorizon * (0.15 + godRayIntensity * 0.2);
-    sunGlowMat.color.copy(sunLight.color);
-    // corona: very subtle, strongest at golden hour
-    sunCoronaMat.opacity = sunAboveHorizon * (0.04 + godRayIntensity * 0.12);
-    sunCoronaMat.color.copy(sunLight.color);
+    sunShaderMat.uniforms.uTime.value = elapsed;
+    sunShaderMat.uniforms.uOpacity.value = sunAboveHorizon * (0.7 + godRayIntensity * 0.3);
+    sunShaderMat.uniforms.uColor.value.copy(sunLight.color);
+    // rim color: warmer/more orange, especially at golden hour
+    const rimCol = sunShaderMat.uniforms.uRimColor.value;
+    rimCol.copy(sunLight.color);
+    rimCol.r = Math.min(1.0, rimCol.r * 1.1);
+    rimCol.g *= 0.8;
+    rimCol.b *= 0.5;
   }
 
   // ── CINEMATIC CAMERA UPDATE ──
