@@ -602,6 +602,25 @@ const toonGrad4 = createToonGradient(4, 0.38);
 const toonGrad5 = createToonGradient(5, 0.34);
 const toonGrad6 = createToonGradient(6, 0.3);
 
+// reflective material for foliage/vegetation — waxy leaf sheen
+function createFoliageMat(color, opts = {}) {
+  return new THREE.MeshPhongMaterial({
+    color: new THREE.Color(color),
+    specular: new THREE.Color(opts.specular || 0x445533),
+    shininess: opts.shininess || 18,
+    ...opts,
+  });
+}
+// reflective material for trunks — subtle bark sheen
+function createTrunkMat(color, opts = {}) {
+  return new THREE.MeshPhongMaterial({
+    color: new THREE.Color(color),
+    specular: new THREE.Color(opts.specular || 0x222211),
+    shininess: opts.shininess || 8,
+    ...opts,
+  });
+}
+
 // ── LIGHTING ────────────────────────────────────
 const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.45);
 scene.add(ambientLight);
@@ -639,12 +658,25 @@ const bounceLight = new THREE.PointLight(0x68a8c0, 0.3, 15);
 bounceLight.position.set(0, -0.5, 0);
 scene.add(bounceLight);
 
-// ── SUN DISK (for god rays) ─────────────────────
-const sunDiskGeo = new THREE.SphereGeometry(1.2, 16, 12);
+// ── SUN ORB (visible sun + god ray source) ──────
+const sunOrbGroup = new THREE.Group();
+// core bright disk
+const sunDiskGeo = new THREE.SphereGeometry(1.5, 24, 16);
 const sunDiskMat = new THREE.MeshBasicMaterial({ color: 0xfffae0, transparent: true, opacity: 0.0 });
 const sunDisk = new THREE.Mesh(sunDiskGeo, sunDiskMat);
-sunDisk.position.copy(sunLight.position).multiplyScalar(3);
-scene.add(sunDisk);
+sunOrbGroup.add(sunDisk);
+// inner glow halo
+const sunGlowGeo = new THREE.SphereGeometry(2.8, 16, 12);
+const sunGlowMat = new THREE.MeshBasicMaterial({ color: 0xfff4d0, transparent: true, opacity: 0.0, depthWrite: false });
+const sunGlow = new THREE.Mesh(sunGlowGeo, sunGlowMat);
+sunOrbGroup.add(sunGlow);
+// outer corona
+const sunCoronaGeo = new THREE.SphereGeometry(5.0, 12, 8);
+const sunCoronaMat = new THREE.MeshBasicMaterial({ color: 0xffe8b0, transparent: true, opacity: 0.0, depthWrite: false });
+const sunCorona = new THREE.Mesh(sunCoronaGeo, sunCoronaMat);
+sunOrbGroup.add(sunCorona);
+sunOrbGroup.position.copy(sunLight.position).multiplyScalar(3);
+scene.add(sunOrbGroup);
 
 // ── NOISE ───────────────────────────────────────
 let seed = 42;
@@ -800,11 +832,9 @@ function getTerrainHeight(x, z, land) {
 let islandGroup = new THREE.Group();
 let cloudGroup = new THREE.Group();
 let particleGroup = new THREE.Group();
-let satelliteGroup = new THREE.Group();
 scene.add(islandGroup);
 scene.add(cloudGroup);
 scene.add(particleGroup);
-scene.add(satelliteGroup);
 
 function createIsland(land) {
   const group = new THREE.Group();
@@ -1212,19 +1242,54 @@ function createIsland(land) {
         vec3 foamCol = mix(uFoamColor, vec3(1.0), 0.6);
         waterCol = mix(waterCol, foamCol, clamp(foam, 0.0, 1.0) * 0.8);
 
-        // ── SHORE FOAM — breaking waves crashing on island ──
-        float shoreT = 1.0 - smoothstep(0.82, 1.12, vIslandDist);
-        // animated wave crash cycle
-        float crashPhase = uTime * 0.5;
-        float crashWave = sin(vIslandDist * 15.0 - crashPhase) * 0.5 + 0.5;
-        float crashWave2 = sin(vIslandDist * 22.0 - crashPhase * 1.3 + 1.5) * 0.5 + 0.5;
-        // foam pattern with noisy edges
-        float shFoamTex = fbmFoam(vWorldPos.xz * 5.0 + vec2(uTime * 0.3));
-        float shoreFoam = shoreT * max(crashWave, crashWave2 * 0.7) * (0.5 + shFoamTex * 0.5);
-        // trailing dissolve pattern
+        // ── SHORE SPLASH — waves crashing against island cliffs ──
+        float shoreT = 1.0 - smoothstep(0.82, 1.15, vIslandDist);
+        // multiple crash waves at different speeds — they pile up
+        float crashPhase1 = uTime * 0.6;
+        float crashPhase2 = uTime * 0.45;
+        float crashPhase3 = uTime * 0.8;
+        // primary crash — big rolling wave
+        float crash1 = sin(vIslandDist * 18.0 - crashPhase1) * 0.5 + 0.5;
+        crash1 = pow(crash1, 1.5); // sharpen the crest
+        // secondary crash — offset timing
+        float crash2 = sin(vIslandDist * 25.0 - crashPhase2 + 2.1) * 0.5 + 0.5;
+        crash2 = pow(crash2, 2.0);
+        // fast ripple crash from wind direction
+        float windAngle = dot(normalize(vWorldPos.xz + vec2(0.001)), uWindDir);
+        float crash3 = sin(vIslandDist * 30.0 - crashPhase3 + windAngle * 3.0) * 0.5 + 0.5;
+        crash3 *= max(0.3, 0.5 + windAngle * 0.5); // stronger on windward side
+
+        // foam texture breakup
+        float shFoamTex = fbmFoam(vWorldPos.xz * 5.0 + uWindDir * uTime * 0.2);
+        float shFoamFine = vnoise(vWorldPos.xz * 20.0 + uTime * vec2(0.4, -0.2));
+
+        // combine crashes with foam texture
+        float shoreFoam = shoreT * (crash1 * 0.5 + crash2 * 0.3 + crash3 * 0.2);
+        shoreFoam *= (0.4 + shFoamTex * 0.6);
+
+        // dissolve pattern for natural foam edges
         float dissolve = vnoise(vWorldPos.xz * 15.0 + uTime * vec2(0.2, -0.3));
-        shoreFoam *= smoothstep(0.2, 0.5, dissolve + shoreT * 0.3);
-        waterCol = mix(waterCol, foamCol, clamp(shoreFoam, 0.0, 1.0) * 0.75);
+        shoreFoam *= smoothstep(0.15, 0.5, dissolve + shoreT * 0.4);
+
+        // ── SPLASH SPRAY — bright highlights right at the cliff edge ──
+        float splashZone = 1.0 - smoothstep(0.82, 0.92, vIslandDist);
+        float splashPulse = max(crash1, crash2) * splashZone;
+        // sparkle spray dots
+        float sprayNoise = vnoise(vWorldPos.xz * 40.0 + uTime * vec2(1.5, -1.2));
+        float spray = splashPulse * step(0.7, sprayNoise) * 1.5;
+        shoreFoam += spray;
+
+        // ── TURBULENT CHURN — constant foam at cliff base ──
+        float churnZone = 1.0 - smoothstep(0.82, 0.88, vIslandDist);
+        float churn = churnZone * (0.5 + shFoamFine * 0.5);
+        // churn bubbles
+        float bubbles = vnoise(vWorldPos.xz * 35.0 + uTime * vec2(0.8, 0.6));
+        churn += churnZone * step(0.6, bubbles) * 0.4;
+        shoreFoam = max(shoreFoam, churn);
+
+        waterCol = mix(waterCol, foamCol, clamp(shoreFoam, 0.0, 1.0) * 0.85);
+        // splash highlight — extra bright white on spray
+        waterCol += vec3(spray * 0.3) * uSunColor;
 
         // ── TRANSPARENCY — deeper = more opaque (absorption), foam = opaque ──
         float alpha = mix(0.82, 0.4, smoothstep(0.15, 0.9, vDepth));
@@ -1308,9 +1373,9 @@ function createIsland(land) {
       // varied tree sizes — Ghibli-scale, lush but varied
       const sizeClass = seededRandom();
       let treeH;
-      if (sizeClass > 0.8) treeH = 0.8 + seededRandom() * 0.5;         // large
-      else if (sizeClass > 0.35) treeH = 0.45 + seededRandom() * 0.4;  // medium
-      else treeH = 0.25 + seededRandom() * 0.25;                        // small
+      if (sizeClass > 0.8) treeH = 1.2 + seededRandom() * 0.7;         // large
+      else if (sizeClass > 0.35) treeH = 0.7 + seededRandom() * 0.55;  // medium
+      else treeH = 0.4 + seededRandom() * 0.35;                         // small
 
       const tree = createVegetation(land, treeH, OUTLINE_COL);
       tree.position.set(tx, th, tz);
@@ -1601,10 +1666,7 @@ function createBush(land, outlineColor) {
     }
     geo.computeVertexNormals();
 
-    const mat = new THREE.MeshToonMaterial({
-      color: new THREE.Color(seededRandom() > 0.5 ? land.colors.bush : land.colors.bushLight),
-      gradientMap: toonGrad4,
-    });
+    const mat = createFoliageMat(seededRandom() > 0.5 ? land.colors.bush : land.colors.bushLight);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(
       (seededRandom() - 0.5) * bushR * 1.5,
@@ -1642,9 +1704,7 @@ function createMushroomTree(land, height, outlineColor) {
     stemPos.setZ(i, stemPos.getZ(i) * bulge);
   }
   stemGeo.computeVertexNormals();
-  const stemMat = new THREE.MeshToonMaterial({
-    color: new THREE.Color(land.colors.trunk), gradientMap: toonGrad4,
-  });
+  const stemMat = createTrunkMat(land.colors.trunk);
   const stem = new THREE.Mesh(stemGeo, stemMat);
   stem.position.y = stemH * 0.5;
   stem.castShadow = true;
@@ -1678,7 +1738,7 @@ function createMushroomTree(land, height, outlineColor) {
     }
     capGeo.setAttribute('color', new THREE.BufferAttribute(capColors, 3));
 
-    const capMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad4 });
+    const capMat = new THREE.MeshPhongMaterial({ vertexColors: true, specular: new THREE.Color(0x556644), shininess: 25 });
     const cap = new THREE.Mesh(capGeo, capMat);
     const ox = c === 0 ? 0 : (seededRandom() - 0.5) * capR * 0.6;
     const oz = c === 0 ? 0 : (seededRandom() - 0.5) * capR * 0.6;
@@ -1699,11 +1759,11 @@ function createMushroomTree(land, height, outlineColor) {
     const miniR = 0.012 + seededRandom() * 0.01;
     const miniStem = new THREE.Mesh(
       new THREE.CylinderGeometry(0.003, 0.005, miniH, 4),
-      new THREE.MeshToonMaterial({ color: new THREE.Color(land.colors.trunkLight), gradientMap: toonGrad3 })
+      createTrunkMat(land.colors.trunkLight)
     );
     const miniCap = new THREE.Mesh(
       new THREE.SphereGeometry(miniR, 6, 4, 0, Math.PI * 2, 0, Math.PI * 0.5),
-      new THREE.MeshToonMaterial({ color: new THREE.Color(land.colors.foliageLight), gradientMap: toonGrad3 })
+      createFoliageMat(land.colors.foliageLight, { shininess: 30 })
     );
     const ox = (seededRandom() - 0.5) * 0.08;
     const oz = (seededRandom() - 0.5) * 0.08;
@@ -1738,9 +1798,10 @@ function createCrystalSpire(land, height, outlineColor) {
     geo.computeVertexNormals();
 
     const colors = [land.colors.foliage, land.colors.foliageLight, land.colors.foliageDark];
-    const mat = new THREE.MeshToonMaterial({
+    const mat = new THREE.MeshPhongMaterial({
       color: new THREE.Color(colors[s % 3]),
-      gradientMap: toonGrad3,
+      specular: new THREE.Color(0x88aacc),
+      shininess: 60,
       transparent: true, opacity: 0.82,
     });
     const crystal = new THREE.Mesh(geo, mat);
@@ -1763,9 +1824,10 @@ function createCrystalSpire(land, height, outlineColor) {
   for (let i = 0; i < 3; i++) {
     const dSize = 0.008 + seededRandom() * 0.012;
     const dGeo = new THREE.OctahedronGeometry(dSize, 0);
-    const dMat = new THREE.MeshToonMaterial({
+    const dMat = new THREE.MeshPhongMaterial({
       color: new THREE.Color(land.colors.foliageLight),
-      gradientMap: toonGrad3,
+      specular: new THREE.Color(0x88aacc),
+      shininess: 50,
       transparent: true, opacity: 0.7,
     });
     const debris = new THREE.Mesh(dGeo, dMat);
@@ -1811,7 +1873,7 @@ function createTallTree(land, height, outlineColor) {
   }
   trunkGeo.setAttribute('color', new THREE.BufferAttribute(trunkColors, 3));
 
-  const trunkMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad4 });
+  const trunkMat = new THREE.MeshPhongMaterial({ vertexColors: true, specular: new THREE.Color(0x222211), shininess: 8 });
   const trunk = new THREE.Mesh(trunkGeo, trunkMat);
   trunk.position.y = trunkH * 0.5;
   trunk.castShadow = true;
@@ -1838,10 +1900,7 @@ function createTallTree(land, height, outlineColor) {
     lGeo.computeVertexNormals();
 
     const foliageColors = [land.colors.foliage, land.colors.foliageDark, land.colors.foliageLight];
-    const lMat = new THREE.MeshToonMaterial({
-      color: new THREE.Color(foliageColors[i % 3]),
-      gradientMap: toonGrad4,
-    });
+    const lMat = createFoliageMat(foliageColors[i % 3]);
     const leaf = new THREE.Mesh(lGeo, lMat);
     const angle = (i / leafCount) * Math.PI * 2 + seededRandom() * 0.5;
     leaf.position.set(
@@ -1905,10 +1964,7 @@ function createCoralFormation(land, height, outlineColor) {
     geo.computeVertexNormals();
 
     const colors = [land.colors.foliage, land.colors.foliageLight, land.colors.foliageDark];
-    const mat = new THREE.MeshToonMaterial({
-      color: new THREE.Color(colors[b % 3]),
-      gradientMap: toonGrad4,
-    });
+    const mat = createFoliageMat(colors[b % 3], { shininess: 22 });
     const branch = new THREE.Mesh(geo, mat);
     const angle = (b / branchCount) * Math.PI * 2 + seededRandom() * 0.5;
     const spread = 0.01 + seededRandom() * 0.04;
@@ -1921,10 +1977,7 @@ function createCoralFormation(land, height, outlineColor) {
     // bulb tips with slight glow
     const tipR = br * 0.6 + seededRandom() * br * 0.3;
     const tipGeo = new THREE.SphereGeometry(tipR, 6, 5);
-    const tipMat = new THREE.MeshToonMaterial({
-      color: new THREE.Color(land.colors.foliageLight),
-      gradientMap: toonGrad3,
-    });
+    const tipMat = createFoliageMat(land.colors.foliageLight, { shininess: 30 });
     const tip = new THREE.Mesh(tipGeo, tipMat);
     tip.position.set(branch.position.x, bh * 0.95, branch.position.z);
     tip.castShadow = true;
@@ -1966,9 +2019,7 @@ function createGhibliTree(land, height, outlineColor) {
     }
   }
   trunkGeo.computeVertexNormals();
-  const trunkMat = new THREE.MeshToonMaterial({
-    color: new THREE.Color(land.colors.trunk), gradientMap: toonGrad4,
-  });
+  const trunkMat = createTrunkMat(land.colors.trunk);
   const trunk = new THREE.Mesh(trunkGeo, trunkMat);
   trunk.position.y = height * 0.275;
   trunk.castShadow = true;
@@ -2005,10 +2056,7 @@ function createGhibliTree(land, height, outlineColor) {
     }
     sGeo.computeVertexNormals();
 
-    const sMat = new THREE.MeshToonMaterial({
-      color: new THREE.Color(foliageColors[idx % 3]),
-      gradientMap: toonGrad4,
-    });
+    const sMat = createFoliageMat(foliageColors[idx % 3]);
     const sphere = new THREE.Mesh(sGeo, sMat);
     sphere.position.set(sp[0], sp[1], sp[2]);
     sphere.castShadow = true;
@@ -2120,161 +2168,6 @@ function createParticles(land) {
   return group;
 }
 
-// ── SATELLITE ISLANDS ───────────────────────────
-function createSatelliteIslands(land) {
-  const group = new THREE.Group();
-  seed = 1100;
-  const OUTLINE_COL = new THREE.Color(land.outline);
-  const configs = [
-    { dist: 8.5,  height: 0.8,  scale: 0.28, orbitSpeed: 0.03,  bobSpeed: 0.5, bobPhase: 0, angleOffset: 0 },
-    { dist: 11.0, height: -0.3, scale: 0.22, orbitSpeed: -0.02, bobSpeed: 0.7, bobPhase: 1.5, angleOffset: 2.1 },
-    { dist: 9.5,  height: 1.2,  scale: 0.18, orbitSpeed: 0.025, bobSpeed: 0.6, bobPhase: 3.0, angleOffset: 4.2 },
-    { dist: 13.0, height: 0.2,  scale: 0.32, orbitSpeed: -0.015, bobSpeed: 0.45, bobPhase: 4.5, angleOffset: 5.5 },
-  ];
-  for (let si = 0; si < configs.length; si++) {
-    const cfg = configs[si];
-    const miniGroup = new THREE.Group();
-    // terrain
-    const miniR = 1.0;
-    const SEG = 20;
-    const geo = new THREE.PlaneGeometry(miniR * 2, miniR * 2, SEG, SEG);
-    geo.rotateX(-Math.PI / 2);
-    const pos = geo.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), z = pos.getZ(i);
-      const dist = Math.sqrt(x * x + z * z) / miniR;
-      if (dist <= 1.0) {
-        let h = 0.3 + fbm(x * 1.2 + si * 10, z * 1.2 + si * 10, 3) * 0.4;
-        const hill = Math.max(0, 1 - dist * 0.8);
-        h += Math.pow(hill, 0.7) * 0.5;
-        if (dist > 0.75) h *= Math.pow(Math.max(0, (1 - dist) / 0.25), 2.0);
-        pos.setY(i, Math.max(0, h));
-      } else {
-        const angle = Math.atan2(z, x);
-        pos.setX(i, Math.cos(angle) * miniR);
-        pos.setZ(i, Math.sin(angle) * miniR);
-        pos.setY(i, 0);
-      }
-    }
-    geo.computeVertexNormals();
-    // vertex colors
-    const colors = new Float32Array(pos.count * 3);
-    for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i);
-      const n = noise2D(pos.getX(i) * 3.5 + 7, pos.getZ(i) * 3.5 + 7);
-      let col;
-      if (y < 0.05) col = new THREE.Color(land.colors.sand);
-      else if (y < 0.3) col = n > 0.5 ? new THREE.Color(land.colors.grassLight) : new THREE.Color(land.colors.grass);
-      else col = n > 0.6 ? new THREE.Color(land.colors.grassDark) : new THREE.Color(land.colors.grass);
-      colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
-    }
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    const terrainMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad5 });
-    const terrain = new THREE.Mesh(geo, terrainMat);
-    terrain.castShadow = true;
-    terrain.receiveShadow = true;
-    miniGroup.add(terrain);
-    // cliff base
-    const cliffGeo = new THREE.CylinderGeometry(miniR * 0.7, miniR * 0.25, 1.2, 24, 4);
-    const cliffPos = cliffGeo.attributes.position;
-    for (let i = 0; i < cliffPos.count; i++) {
-      const n = noise2D(cliffPos.getX(i) * 3 + 20, cliffPos.getZ(i) * 3 + 20) * 0.15;
-      cliffPos.setX(i, cliffPos.getX(i) * (1 + n));
-      cliffPos.setZ(i, cliffPos.getZ(i) * (1 + n));
-    }
-    cliffGeo.computeVertexNormals();
-    const cliffColors = new Float32Array(cliffPos.count * 3);
-    for (let i = 0; i < cliffPos.count; i++) {
-      const y = cliffPos.getY(i);
-      const n = noise2D(cliffPos.getX(i) * 4, cliffPos.getZ(i) * 4);
-      const col = y > 0.2 ? new THREE.Color(land.colors.cliff) : (n > 0.5 ? new THREE.Color(land.colors.cliffDark) : new THREE.Color(land.colors.rockDark));
-      cliffColors[i * 3] = col.r; cliffColors[i * 3 + 1] = col.g; cliffColors[i * 3 + 2] = col.b;
-    }
-    cliffGeo.setAttribute('color', new THREE.BufferAttribute(cliffColors, 3));
-    const cliffMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad4 });
-    const cliff = new THREE.Mesh(cliffGeo, cliffMat);
-    cliff.position.y = -0.65;
-    cliff.castShadow = true;
-    miniGroup.add(cliff);
-    // outline
-    const outMat = new THREE.MeshBasicMaterial({ color: OUTLINE_COL, side: THREE.BackSide });
-    const outGeo = geo.clone();
-    const oPos = outGeo.attributes.position;
-    for (let i = 0; i < oPos.count; i++) oPos.setY(i, oPos.getY(i) - 0.02);
-    const outMesh = new THREE.Mesh(outGeo, outMat);
-    outMesh.scale.set(1.015, 1, 1.015);
-    miniGroup.add(outMesh);
-    const cliffOut = new THREE.Mesh(cliffGeo.clone(), outMat.clone());
-    cliffOut.position.y = -0.65;
-    cliffOut.scale.multiplyScalar(1.015);
-    miniGroup.add(cliffOut);
-    // vegetation (2-5 trees)
-    if (land.hasTrees && land.treeCount > 0) {
-      const treeCount = 2 + Math.floor(seededRandom() * 4);
-      for (let ti = 0; ti < treeCount; ti++) {
-        const angle = seededRandom() * Math.PI * 2;
-        const r = 0.1 + seededRandom() * miniR * 0.5;
-        const tx = Math.cos(angle) * r;
-        const tz = Math.sin(angle) * r;
-        const tdist = Math.sqrt(tx * tx + tz * tz) / miniR;
-        if (tdist > 0.75) continue;
-        let th = 0.3 + fbm(tx * 1.2 + si * 10, tz * 1.2 + si * 10, 3) * 0.4;
-        const hill = Math.max(0, 1 - tdist * 0.8);
-        th += Math.pow(hill, 0.7) * 0.5;
-        if (th < 0.1) continue;
-        const treeH = 0.2 + seededRandom() * 0.3;
-        const tree = createVegetation(land, treeH, OUTLINE_COL);
-        tree.position.set(tx, th, tz);
-        miniGroup.add(tree);
-      }
-    }
-    // rocks (1-2)
-    if (land.hasRocks) {
-      for (let ri = 0; ri < 2; ri++) {
-        const rx = (seededRandom() - 0.5) * miniR * 0.6;
-        const rz = (seededRandom() - 0.5) * miniR * 0.6;
-        const rdist = Math.sqrt(rx * rx + rz * rz) / miniR;
-        if (rdist > 0.7) continue;
-        let rh = 0.3 + fbm(rx * 1.2 + si * 10, rz * 1.2 + si * 10, 3) * 0.4;
-        const hill = Math.max(0, 1 - rdist * 0.8);
-        rh += Math.pow(hill, 0.7) * 0.5;
-        if (rh < 0.05) continue;
-        const rockSize = 0.03 + seededRandom() * 0.06;
-        const rockGeo = new THREE.IcosahedronGeometry(rockSize, 1);
-        const rPos = rockGeo.attributes.position;
-        for (let k = 0; k < rPos.count; k++) {
-          const n = noise2D(rPos.getX(k) * 15, rPos.getZ(k) * 15) * 0.15 + 0.92;
-          rPos.setX(k, rPos.getX(k) * n); rPos.setY(k, rPos.getY(k) * n * 0.8); rPos.setZ(k, rPos.getZ(k) * n);
-        }
-        rockGeo.computeVertexNormals();
-        const rockMat = new THREE.MeshToonMaterial({ color: new THREE.Color(land.colors.rock), gradientMap: toonGrad4 });
-        const rock = new THREE.Mesh(rockGeo, rockMat);
-        rock.position.set(rx, rh + rockSize * 0.2, rz);
-        rock.rotation.set(seededRandom() * 2, seededRandom() * 2, 0);
-        rock.castShadow = true;
-        miniGroup.add(rock);
-      }
-    }
-    // position and scale
-    miniGroup.scale.setScalar(cfg.scale);
-    const startAngle = cfg.angleOffset;
-    miniGroup.position.set(
-      Math.cos(startAngle) * cfg.dist,
-      cfg.height,
-      Math.sin(startAngle) * cfg.dist,
-    );
-    miniGroup.userData.isSatellite = true;
-    miniGroup.userData.orbitDist = cfg.dist;
-    miniGroup.userData.orbitSpeed = cfg.orbitSpeed;
-    miniGroup.userData.orbitAngle = startAngle;
-    miniGroup.userData.baseHeight = cfg.height;
-    miniGroup.userData.bobSpeed = cfg.bobSpeed;
-    miniGroup.userData.bobPhase = cfg.bobPhase;
-    group.add(miniGroup);
-  }
-  return group;
-}
-
 // ── TRANSITION ──────────────────────────────────
 let currentLandIndex = 0;
 let transitioning = false;
@@ -2301,17 +2194,14 @@ function switchToLand(index) {
       scene.remove(islandGroup);
       scene.remove(cloudGroup);
       scene.remove(particleGroup);
-      scene.remove(satelliteGroup);
       islandGroup = createIsland(LANDS[targetIndex]);
       cloudGroup = createClouds(LANDS[targetIndex]);
       particleGroup = createParticles(LANDS[targetIndex]);
-      satelliteGroup = createSatelliteIslands(LANDS[targetIndex]);
       islandGroup.position.y = -2.5;
       islandGroup.scale.setScalar(0.8);
       scene.add(islandGroup);
       scene.add(cloudGroup);
       scene.add(particleGroup);
-      scene.add(satelliteGroup);
       currentLandIndex = targetIndex;
       updateSceneColors(LANDS[targetIndex]);
       transitionProgress = 0;
@@ -2552,11 +2442,9 @@ LANDS.forEach((land, i) => {
 islandGroup = createIsland(LANDS[0]);
 cloudGroup = createClouds(LANDS[0]);
 particleGroup = createParticles(LANDS[0]);
-satelliteGroup = createSatelliteIslands(LANDS[0]);
 scene.add(islandGroup);
 scene.add(cloudGroup);
 scene.add(particleGroup);
-scene.add(satelliteGroup);
 updateSceneColors(LANDS[0]);
 
 // ── ANIMATION LOOP ──────────────────────────────
@@ -2758,23 +2646,10 @@ function animate() {
     if (cloud.position.x < -18) cloud.position.x = 18;
   });
 
-  // ── SATELLITE ISLAND ANIMATION ──
-  satelliteGroup.children.forEach(sat => {
-    if (sat.userData.isSatellite) {
-      sat.userData.orbitAngle += sat.userData.orbitSpeed * dt;
-      const a = sat.userData.orbitAngle;
-      const d = sat.userData.orbitDist;
-      sat.position.x = Math.cos(a) * d;
-      sat.position.z = Math.sin(a) * d;
-      sat.position.y = sat.userData.baseHeight + Math.sin(elapsed * sat.userData.bobSpeed + sat.userData.bobPhase) * 0.2;
-      sat.rotation.y += dt * 0.05;
-    }
-  });
-
-  // ── GOD RAY UPDATE ──
+  // ── SUN ORB + GOD RAY UPDATE ──
   {
     const sunPos3 = sunLight.position.clone();
-    sunDisk.position.copy(sunPos3).multiplyScalar(3);
+    sunOrbGroup.position.copy(sunPos3).multiplyScalar(3);
     // project sun to screen space
     const sunNDC = sunPos3.clone().project(camera);
     const sunScreenX = sunNDC.x * 0.5 + 0.5;
@@ -2802,8 +2677,20 @@ function animate() {
     if (offScreen > 0.6) godRayIntensity *= Math.max(0, 1 - (offScreen - 0.6) / 0.4);
     godRayPass.uniforms.uIntensity.value = godRayIntensity * 0.6;
     godRayPass.uniforms.uSunColor.value.set(sunLight.color.r, sunLight.color.g, sunLight.color.b);
-    sunDiskMat.opacity = godRayIntensity * 0.3;
+
+    // sun visibility — bright when above horizon, hidden at night
+    const sunAboveHorizon = sunLight.position.y > 0 ? 1.0 : 0.0;
+    const sunDayFactor = Math.max(0, Math.min(1, sunLight.position.y / 5.0)); // fade near horizon
+    // core disk: always visible when sun is up, brighter at golden hour
+    const coreOpacity = sunAboveHorizon * (0.7 + godRayIntensity * 0.3);
+    sunDiskMat.opacity = coreOpacity;
     sunDiskMat.color.copy(sunLight.color);
+    // glow halo: soft, fades with elevation
+    sunGlowMat.opacity = sunAboveHorizon * (0.15 + godRayIntensity * 0.2);
+    sunGlowMat.color.copy(sunLight.color);
+    // corona: very subtle, strongest at golden hour
+    sunCoronaMat.opacity = sunAboveHorizon * (0.04 + godRayIntensity * 0.12);
+    sunCoronaMat.color.copy(sunLight.color);
   }
 
   // ── CINEMATIC CAMERA UPDATE ──
@@ -2918,13 +2805,13 @@ tourBtn.addEventListener('click', (e) => {
 tourBtn.addEventListener('mousedown', (e) => e.stopPropagation());
 
 const tourCameraMoves = [
-  { dist: 8,  height: 4,  lookY: 1.0 }, // close mid
-  { dist: 14, height: 7,  lookY: 0.5 }, // pull back high
-  { dist: 7,  height: 2,  lookY: 0.8 }, // low angle close
-  { dist: 12, height: 9,  lookY: 0.3 }, // high overview
-  { dist: 9,  height: 3,  lookY: 1.2 }, // medium
-  { dist: 13, height: 5,  lookY: 0.7 }, // wide
-  { dist: 8,  height: 6,  lookY: 0.9 }, // close high
+  { dist: 7,  height: 3.5, lookY: 1.0 }, // close mid
+  { dist: 10, height: 5,   lookY: 0.8 }, // pull back
+  { dist: 6,  height: 1.8, lookY: 1.0 }, // low angle close
+  { dist: 9,  height: 6,   lookY: 0.5 }, // slightly high
+  { dist: 7.5, height: 2.5, lookY: 1.2 }, // medium
+  { dist: 10, height: 4,   lookY: 0.9 }, // wide
+  { dist: 6.5, height: 4.5, lookY: 1.0 }, // close high
 ];
 
 function updateCinematicCamera(elapsed, dt) {
@@ -2954,10 +2841,10 @@ function updateCinematicCamera(elapsed, dt) {
 
   // camera orbit
   cinematicAngle += 0.08 * dt;
-  const move = tourMode ? tourCameraMoves[tourCameraPhase] : { dist: 10, height: 5.5, lookY: 0.8 };
-  const targetDist = tourMode ? move.dist : 10 + Math.sin(elapsed * 0.12) * 3;
-  const targetHeight = tourMode ? move.height : 5.5 + Math.sin(elapsed * 0.08) * 2.5;
-  const lookY = tourMode ? move.lookY : 0.8;
+  const move = tourMode ? tourCameraMoves[tourCameraPhase] : { dist: 8, height: 4, lookY: 1.0 };
+  const targetDist = tourMode ? move.dist : 8 + Math.sin(elapsed * 0.12) * 1.5;
+  const targetHeight = tourMode ? move.height : 4 + Math.sin(elapsed * 0.08) * 1.5;
+  const lookY = tourMode ? move.lookY : 1.0;
 
   const targetPos = new THREE.Vector3(
     Math.cos(cinematicAngle) * targetDist,
