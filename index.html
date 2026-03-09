@@ -463,6 +463,7 @@ const godRayShader = {
     tDiffuse: { value: null },
     uSunScreenPos: { value: new THREE.Vector2(0.5, 0.5) },
     uIntensity: { value: 0.0 },
+    uSunColor: { value: new THREE.Vector3(1.0, 0.9, 0.7) },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -472,26 +473,30 @@ const godRayShader = {
     uniform sampler2D tDiffuse;
     uniform vec2 uSunScreenPos;
     uniform float uIntensity;
+    uniform vec3 uSunColor;
     varying vec2 vUv;
     void main() {
       vec4 texColor = texture2D(tDiffuse, vUv);
       if (uIntensity < 0.01) { gl_FragColor = texColor; return; }
       vec2 deltaUV = (vUv - uSunScreenPos);
       float dist = length(deltaUV);
-      deltaUV *= 1.0 / 30.0;
+      deltaUV *= 1.0 / 40.0;
       vec2 uv = vUv;
       float illumination = 0.0;
       float decay = 1.0;
-      for (int i = 0; i < 30; i++) {
+      for (int i = 0; i < 40; i++) {
         uv -= deltaUV;
         vec4 s = texture2D(tDiffuse, clamp(uv, 0.0, 1.0));
         float lum = dot(s.rgb, vec3(0.2126, 0.7152, 0.0722));
-        illumination += lum * decay * 0.033;
-        decay *= 0.96;
+        lum = lum * lum;
+        illumination += lum * decay * 0.025;
+        decay *= 0.965;
       }
-      float falloff = 1.0 - smoothstep(0.0, 0.8, dist);
-      vec3 rays = vec3(1.0, 0.9, 0.7) * illumination * uIntensity * falloff;
-      gl_FragColor = vec4(texColor.rgb + rays, texColor.a);
+      float falloff = exp(-dist * dist * 3.0);
+      vec3 rayColor = uSunColor * illumination * uIntensity * falloff;
+      float haze = smoothstep(0.5, 0.0, dist) * uIntensity * 0.08;
+      vec3 hazeColor = mix(vec3(0.7, 0.8, 1.0), uSunColor, 0.3);
+      gl_FragColor = vec4(texColor.rgb + rayColor + hazeColor * haze, texColor.a);
     }
   `,
 };
@@ -506,6 +511,9 @@ const colorGradeShader = {
     uSaturation: { value: 1.08 },
     uContrast: { value: 1.05 },
     uBrightness: { value: 0.0 },
+    uTime: { value: 0.0 },
+    uTemperature: { value: 0.0 },
+    uGrain: { value: 0.03 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -517,25 +525,53 @@ const colorGradeShader = {
     uniform float uSaturation;
     uniform float uContrast;
     uniform float uBrightness;
+    uniform float uTime;
+    uniform float uTemperature;
+    uniform float uGrain;
     varying vec2 vUv;
-    void main() {
-      vec4 tex = texture2D(tDiffuse, vUv);
-      vec3 col = tex.rgb;
 
-      // contrast + brightness
+    float grainHash(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    void main() {
+      // ── CHROMATIC ABERRATION — subtle radial color split ──
+      vec2 center = vUv - 0.5;
+      float dist = length(center);
+      float caStrength = dist * dist * 0.003;
+      vec2 caOffset = center * caStrength;
+      float r = texture2D(tDiffuse, vUv + caOffset).r;
+      float g = texture2D(tDiffuse, vUv).g;
+      float b = texture2D(tDiffuse, vUv - caOffset).b;
+      vec3 col = vec3(r, g, b);
+
+      // ── TONE CURVE — lift/gamma/gain ──
+      col = pow(col, vec3(1.0 / 1.02));
       col = (col - 0.5) * uContrast + 0.5 + uBrightness;
 
-      // saturation
+      // ── COLOR TEMPERATURE — warm/cool shift ──
+      float temp = uTemperature * 0.08;
+      col.r += temp;
+      col.b -= temp;
+      col.g += temp * 0.3;
+
+      // ── SATURATION ──
       float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
       col = mix(vec3(lum), col, uSaturation);
 
-      // vignette — soft darkening at edges
+      // ── FILM GRAIN — animated noise ──
+      float grain = grainHash(vUv * 500.0 + fract(uTime * 7.23) * 100.0) - 0.5;
+      col += grain * uGrain;
+
+      // ── VIGNETTE ──
       vec2 uv = vUv * 2.0 - 1.0;
       float vig = 1.0 - dot(uv * 0.5, uv * 0.5);
       vig = smoothstep(0.0, 1.0, vig);
       col *= mix(1.0 - uVignetteStrength, 1.0, vig);
 
-      gl_FragColor = vec4(col, tex.a);
+      gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
     }
   `,
 };
@@ -1089,15 +1125,22 @@ function createIsland(land) {
         vec3 viewDir = normalize(cameraPosition - vWorldPos);
         vec3 norm = normalize(vNormal);
 
-        // ── NORMAL PERTURBATION for micro-detail ──
-        // procedural bump at fragment level for detail the vertex grid can't capture
-        float bumpScale = 0.0008;
-        float n1 = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.8, 0.6));
-        float n2 = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.8, 0.6) + vec2(0.1, 0.0));
-        float n3 = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.8, 0.6) + vec2(0.0, 0.1));
-        vec3 microNorm = normalize(vec3((n1 - n2) / bumpScale, 1.0, (n1 - n3) / bumpScale));
-        // blend micro-normal with vertex normal
-        norm = normalize(norm + microNorm * 0.12);
+        // ── DUAL-FLOW NORMALS — two layers flowing in different directions ──
+        float bump = 0.0006;
+        vec2 flow1 = uWindDir * uTime * 0.4 + vec2(uTime * 0.15, 0.0);
+        vec2 flow2 = -uWindDir * uTime * 0.25 + vec2(0.0, uTime * 0.12);
+        // layer 1: medium detail
+        float n1a = vnoise(vWorldPos.xz * 8.0 + flow1);
+        float n1b = vnoise(vWorldPos.xz * 8.0 + flow1 + vec2(bump, 0.0));
+        float n1c = vnoise(vWorldPos.xz * 8.0 + flow1 + vec2(0.0, bump));
+        vec3 norm1 = normalize(vec3((n1a - n1b) / bump, 1.0, (n1a - n1c) / bump));
+        // layer 2: fine detail
+        float n2a = vnoise(vWorldPos.xz * 22.0 + flow2);
+        float n2b = vnoise(vWorldPos.xz * 22.0 + flow2 + vec2(bump, 0.0));
+        float n2c = vnoise(vWorldPos.xz * 22.0 + flow2 + vec2(0.0, bump));
+        vec3 norm2 = normalize(vec3((n2a - n2b) / bump, 1.0, (n2a - n2c) / bump));
+        // blend both layers with vertex normal
+        norm = normalize(norm + norm1 * 0.15 + norm2 * 0.08);
 
         // ── DEPTH-BASED COLOR — 4-stop gradient for SoT look ──
         float depthT = smoothstep(0.0, 1.0, vDepth);
@@ -1191,12 +1234,31 @@ function createIsland(land) {
         // near island is more opaque (seeing the ground through)
         if (vIslandDist < 1.0) alpha = mix(alpha, 0.6, 1.0 - vIslandDist);
 
-        // ── CAUSTICS — triple-layer shimmer ──
-        float c1 = sin(vWorldPos.x * 15.0 + uTime * 2.0) * sin(vWorldPos.z * 15.0 - uTime * 1.5);
-        float c2 = sin(vWorldPos.x * 22.0 - uTime * 1.3) * sin(vWorldPos.z * 18.0 + uTime * 1.8);
-        float c3 = sin(vWorldPos.x * 30.0 + uTime * 0.9) * sin(vWorldPos.z * 25.0 - uTime * 1.1);
-        float caustic = pow(max(c1, 0.0), 3.0) + pow(max(c2, 0.0), 4.0) * 0.4 + pow(max(c3, 0.0), 5.0) * 0.2;
-        waterCol += vec3(caustic * 0.05) * (1.0 - vDepth) * (1.0 - foam);
+        // ── CAUSTICS — voronoi cell pattern ──
+        float caustic = 0.0;
+        for (int k = 0; k < 2; k++) {
+          float scale = 12.0 + float(k) * 10.0;
+          float speed = 1.5 - float(k) * 0.4;
+          vec2 cuv = vWorldPos.xz * scale + uTime * speed * vec2(0.7, 0.3);
+          vec2 ci = floor(cuv), cf = fract(cuv);
+          float minD = 1.0;
+          for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+              vec2 neighbor = vec2(float(x), float(y));
+              vec2 point = vec2(hash(ci + neighbor), hash(ci + neighbor + vec2(7.3, 1.7)));
+              point = 0.5 + 0.5 * sin(uTime * 0.8 + 6.2831 * point);
+              float d = length(neighbor + point - cf);
+              minD = min(minD, d);
+            }
+          }
+          caustic += pow(1.0 - minD, 4.0) * (k == 0 ? 0.06 : 0.03);
+        }
+        waterCol += vec3(caustic) * (1.0 - vDepth) * (1.0 - foam) * uSunColor * 0.5;
+
+        // ── WAVE RIM LIGHT — backlit edges glow ──
+        float rimDot = 1.0 - max(dot(viewDir, norm), 0.0);
+        float waveRim = pow(rimDot, 4.0) * smoothstep(0.0, 0.04, vWaveHeight);
+        waterCol += uSunColor * waveRim * 0.12;
 
         // ── MOUSE RIPPLES ──
         for (int i = 0; i < 5; i++) {
@@ -2386,6 +2448,8 @@ function updateDayNight(tod) {
   colorGradePass.uniforms.uVignetteStrength.value = isNight ? 0.5 : 0.3;
   // slightly desaturate at night
   colorGradePass.uniforms.uSaturation.value = isNight ? 0.9 : 1.08;
+  colorGradePass.uniforms.uTime.value = performance.now() * 0.001;
+  colorGradePass.uniforms.uTemperature.value = isGolden ? 0.6 : (isNight ? -0.3 : 0.1);
   // tone mapping exposure: brighter at day, dimmer at night
   renderer.toneMappingExposure = isNight ? 0.8 : (isGolden ? 1.15 : 1.0);
 }
@@ -2737,6 +2801,7 @@ function animate() {
     const offScreen = Math.max(Math.abs(sunScreenX - 0.5), Math.abs(sunScreenY - 0.5));
     if (offScreen > 0.6) godRayIntensity *= Math.max(0, 1 - (offScreen - 0.6) / 0.4);
     godRayPass.uniforms.uIntensity.value = godRayIntensity * 0.6;
+    godRayPass.uniforms.uSunColor.value.set(sunLight.color.r, sunLight.color.g, sunLight.color.b);
     sunDiskMat.opacity = godRayIntensity * 0.3;
     sunDiskMat.color.copy(sunLight.color);
   }
