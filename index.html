@@ -717,9 +717,9 @@ function createIsland(land) {
     group.add(root);
   }
 
-  // ── WATER (Gerstner waves + shader) ────────
-  const waterR = RADIUS * 1.8;
-  const WATER_SEG = 72;
+  // ── WATER (Sea of Thieves style — dramatic Gerstner + Jacobian foam) ──
+  const waterR = RADIUS * 2.2;
+  const WATER_SEG = 128;
   const waterGeo = new THREE.PlaneGeometry(waterR * 2, waterR * 2, WATER_SEG, WATER_SEG);
   waterGeo.rotateX(-Math.PI / 2);
   const wPos = waterGeo.attributes.position;
@@ -742,24 +742,33 @@ function createIsland(land) {
     waterOrigY[i] = 0;
   }
 
-  // Gerstner wave parameters — 8 overlapping wave sets, wind-aligned
-  // primary waves follow wind, secondary add cross-chop
+  // per-vertex Jacobian for foam (computed in JS, passed as attribute)
+  const jacobianAttr = new Float32Array(wPos.count);
+  waterGeo.setAttribute('aJacobian', new THREE.BufferAttribute(jacobianAttr, 1));
+
+  // Gerstner wave parameters — 12 overlapping sets for SoT-style ocean
   const gerstnerWaves = [
-    // primary wind-aligned swell
-    { dir: [0.7, 0.5],  amp: 0.038, freq: 0.8, speed: 0.75, steep: 0.65 },
-    { dir: [0.6, 0.65], amp: 0.028, freq: 1.2, speed: 1.0,  steep: 0.55 },
-    // secondary wind-offset
-    { dir: [-0.3, 0.85],amp: 0.020, freq: 1.8, speed: 1.4,  steep: 0.50 },
-    { dir: [0.85,-0.2], amp: 0.015, freq: 2.2, speed: 1.7,  steep: 0.45 },
-    // cross-chop for realism
-    { dir: [-0.6, 0.6], amp: 0.010, freq: 3.2, speed: 2.2,  steep: 0.40 },
-    { dir: [0.4, -0.8], amp: 0.008, freq: 4.0, speed: 2.8,  steep: 0.35 },
-    // high-freq ripple detail
-    { dir: [-0.8,-0.4], amp: 0.005, freq: 5.5, speed: 3.5,  steep: 0.30 },
-    { dir: [0.2, 0.9],  amp: 0.003, freq: 7.5, speed: 4.5,  steep: 0.25 },
+    // large primary swell — big rolling waves
+    { dir: [0.7, 0.5],   amp: 0.08, freq: 0.5, speed: 0.55, steep: 0.75 },
+    { dir: [0.55, 0.7],  amp: 0.06, freq: 0.7, speed: 0.7,  steep: 0.70 },
+    // medium secondary swell
+    { dir: [-0.25, 0.9], amp: 0.04, freq: 1.1, speed: 1.0,  steep: 0.60 },
+    { dir: [0.9, -0.15], amp: 0.03, freq: 1.4, speed: 1.2,  steep: 0.55 },
+    // cross-seas
+    { dir: [-0.55, 0.65],amp: 0.022,freq: 1.9, speed: 1.5,  steep: 0.50 },
+    { dir: [0.45, -0.75],amp: 0.018,freq: 2.3, speed: 1.8,  steep: 0.48 },
+    // wind chop
+    { dir: [-0.7, 0.5],  amp: 0.012,freq: 3.2, speed: 2.4,  steep: 0.42 },
+    { dir: [0.3, -0.85], amp: 0.010,freq: 3.8, speed: 2.8,  steep: 0.38 },
+    // ripple detail
+    { dir: [-0.8, -0.35],amp: 0.006,freq: 5.0, speed: 3.5,  steep: 0.32 },
+    { dir: [0.15, 0.95], amp: 0.005,freq: 6.5, speed: 4.2,  steep: 0.28 },
+    // micro-detail
+    { dir: [0.6, -0.6],  amp: 0.003,freq: 8.5, speed: 5.5,  steep: 0.22 },
+    { dir: [-0.5, -0.7], amp: 0.002,freq: 11.0,speed: 7.0,  steep: 0.18 },
   ];
 
-  // water shader — fresnel + specular + depth color + foam + ripples
+  // water shader — SoT-style: dramatic fresnel, Jacobian foam, SSS, god-ray specular
   const waterUniforms = {
     uTime: { value: 0 },
     uShallow: { value: new THREE.Color(land.colors.waterShallow) },
@@ -784,17 +793,20 @@ function createIsland(land) {
     transparent: true,
     depthWrite: false,
     vertexShader: `
+      attribute float aJacobian;
       varying vec3 vWorldPos;
       varying vec3 vNormal;
       varying float vDepth;
       varying float vIslandDist;
       varying float vWaveHeight;
+      varying float vJacobian;
       void main() {
         vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
         vNormal = normalize(normalMatrix * normal);
         vDepth = length(position.xz) / ${waterR.toFixed(1)};
         vIslandDist = length(position.xz) / ${RADIUS.toFixed(1)};
         vWaveHeight = position.y;
+        vJacobian = aJacobian;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
@@ -816,75 +828,142 @@ function createIsland(land) {
       varying float vDepth;
       varying float vIslandDist;
       varying float vWaveHeight;
+      varying float vJacobian;
+
+      // hash noise for foam breakup
+      float hash(vec2 p) {
+        vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
+      }
+      float vnoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        float a = hash(i), b = hash(i + vec2(1,0));
+        float c = hash(i + vec2(0,1)), d = hash(i + vec2(1,1));
+        return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+      }
+      float fbmFoam(vec2 p) {
+        float v = 0.0, a = 0.5;
+        for (int i = 0; i < 4; i++) {
+          v += a * vnoise(p);
+          p *= 2.1; a *= 0.5;
+        }
+        return v;
+      }
 
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorldPos);
         vec3 norm = normalize(vNormal);
 
-        // ── DEPTH-BASED COLOR with smooth 3-stop gradient ──
+        // ── NORMAL PERTURBATION for micro-detail ──
+        // procedural bump at fragment level for detail the vertex grid can't capture
+        float bumpScale = 0.0008;
+        float n1 = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.8, 0.6));
+        float n2 = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.8, 0.6) + vec2(0.1, 0.0));
+        float n3 = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.8, 0.6) + vec2(0.0, 0.1));
+        vec3 microNorm = normalize(vec3((n1 - n2) / bumpScale, 1.0, (n1 - n3) / bumpScale));
+        // blend micro-normal with vertex normal
+        norm = normalize(norm + microNorm * 0.12);
+
+        // ── DEPTH-BASED COLOR — 4-stop gradient for SoT look ──
         float depthT = smoothstep(0.0, 1.0, vDepth);
         vec3 waterCol;
         if (vIslandDist < 1.0) {
-          waterCol = mix(uFoamColor * 0.9, uShallow, smoothstep(0.5, 1.0, vIslandDist));
-        } else if (depthT < 0.4) {
-          waterCol = mix(uShallow, uMid, depthT / 0.4);
+          // near island: bright turquoise → shallow
+          float t = smoothstep(0.4, 1.0, vIslandDist);
+          waterCol = mix(uFoamColor * 0.85 + vec3(0.05), uShallow, t);
+        } else if (depthT < 0.25) {
+          waterCol = mix(uShallow, uMid, depthT / 0.25);
+        } else if (depthT < 0.6) {
+          waterCol = mix(uMid, uDeep, (depthT - 0.25) / 0.35);
         } else {
-          waterCol = mix(uMid, uDeep, (depthT - 0.4) / 0.6);
+          // very deep — darken further
+          waterCol = mix(uDeep, uDeep * 0.6, (depthT - 0.6) / 0.4);
         }
 
-        // ── SUBSURFACE SCATTERING — light through thin water ──
-        float sss = pow(max(dot(viewDir, -uSunDir), 0.0), 4.0);
-        float sssDepth = (1.0 - smoothstep(0.0, 0.5, vDepth));
-        vec3 sssCol = mix(uShallow, uFoamColor, 0.3) * 1.2;
-        waterCol += sssCol * sss * sssDepth * 0.25;
+        // ── ABSORPTION — deeper water absorbs more light ──
+        vec3 absorbColor = vec3(0.02, 0.06, 0.12); // deep ocean tint
+        float absorb = smoothstep(0.3, 1.0, vDepth);
+        waterCol = mix(waterCol, absorbColor + uDeep * 0.3, absorb * 0.4);
 
-        // ── FRESNEL — Schlick approximation ──
+        // ── SUBSURFACE SCATTERING — light glowing through wave crests ──
+        float sssView = pow(max(dot(viewDir, -uSunDir), 0.0), 3.0);
+        float sssHeight = smoothstep(0.0, 0.06, vWaveHeight); // only on crests
+        float sssDepth = 1.0 - smoothstep(0.0, 0.4, vDepth);
+        vec3 sssCol = mix(uShallow * 1.3, uFoamColor * 0.9, 0.4);
+        waterCol += sssCol * sssView * sssHeight * sssDepth * 0.45;
+        // additional SSS from wave thin-ness (side view of crests)
+        float sssSide = pow(1.0 - abs(dot(norm, viewDir)), 2.0);
+        waterCol += sssCol * sssSide * sssHeight * 0.15;
+
+        // ── FRESNEL — Schlick with roughness adjustment ──
         float cosTheta = max(dot(viewDir, norm), 0.0);
-        float fresnel = pow(1.0 - cosTheta, 4.0);
-        vec3 skyReflect = mix(uMid * 1.1, uFoamColor * 0.7, 0.3);
-        waterCol = mix(waterCol, skyReflect, fresnel * 0.4);
+        float F0 = 0.02; // water IOR
+        float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+        // sky color for reflection (time-of-day aware via sun color)
+        vec3 skyReflect = mix(uMid * 0.9, uSunColor * 0.3, 0.2) + vec3(0.1, 0.12, 0.15);
+        waterCol = mix(waterCol, skyReflect, fresnel * 0.65);
 
-        // ── SPECULAR — dual lobe (sun + stretched highlight) ──
+        // ── SPECULAR — triple lobe for SoT sun path ──
         vec3 halfDir = normalize(uSunDir + viewDir);
-        float specSharp = pow(max(dot(norm, halfDir), 0.0), 120.0);
-        float specSoft = pow(max(dot(norm, halfDir), 0.0), 20.0);
-        waterCol += uSunColor * (specSharp * 0.7 + specSoft * 0.12);
+        float specPrimary = pow(max(dot(norm, halfDir), 0.0), 256.0);  // tight sun disk
+        float specSecondary = pow(max(dot(norm, halfDir), 0.0), 48.0); // sun path glow
+        float specTertiary = pow(max(dot(norm, halfDir), 0.0), 8.0);   // wide ambient
+        waterCol += uSunColor * specPrimary * 1.2;
+        waterCol += uSunColor * specSecondary * 0.2;
+        waterCol += uSunColor * specTertiary * 0.04;
 
-        // ── WAVE CREST FOAM — steepness-based (Jacobian approx) ──
-        float crestFoam = smoothstep(0.015, 0.04, vWaveHeight);
-        // wind-driven foam streaks
-        float windDot = dot(normalize(vWorldPos.xz), uWindDir);
-        float windStreak = smoothstep(0.3, 0.8, windDot) * uWindStrength;
-        float foamMix = crestFoam + windStreak * 0.15 * smoothstep(0.01, 0.025, vWaveHeight);
-        // foam texture noise
-        float foamNoise = sin(vWorldPos.x * 25.0 + uTime * 0.8) * sin(vWorldPos.z * 25.0 - uTime * 0.6);
-        foamNoise = foamNoise * 0.5 + 0.5;
-        foamMix *= (0.7 + foamNoise * 0.3);
-        waterCol = mix(waterCol, uFoamColor, clamp(foamMix, 0.0, 1.0) * 0.55);
+        // ── JACOBIAN FOAM — whitecaps where waves break ──
+        float foam = 0.0;
+        // Jacobian < 1 means wave is steepening/breaking
+        float jacobianFoam = smoothstep(0.5, -0.3, vJacobian);
+        // foam texture — multi-octave noise for realistic breakup
+        vec2 foamUV = vWorldPos.xz * 3.0 + uWindDir * uTime * 0.3;
+        float foamTex = fbmFoam(foamUV);
+        float foamTex2 = fbmFoam(foamUV * 2.3 + vec2(5.7, 3.2));
+        // combine: Jacobian drives where, noise drives shape
+        foam = jacobianFoam * (foamTex * 0.6 + foamTex2 * 0.4);
+        // foam also on high wave crests
+        float crestBoost = smoothstep(0.03, 0.08, vWaveHeight);
+        foam += crestBoost * foamTex * 0.3;
+        // wind-driven foam streaks on open water
+        float windDot = dot(normalize(vWorldPos.xz + vec2(0.001)), uWindDir);
+        float streak = smoothstep(0.5, 0.9, windDot) * uWindStrength;
+        float streakTex = vnoise(vWorldPos.xz * vec2(2.0, 8.0) + uWindDir * uTime * 0.5);
+        foam += streak * streakTex * 0.15;
+        // foam color: bright white with slight biome tint
+        vec3 foamCol = mix(uFoamColor, vec3(1.0), 0.6);
+        waterCol = mix(waterCol, foamCol, clamp(foam, 0.0, 1.0) * 0.8);
 
-        // ── SHORE FOAM — animated, layered ──
-        float shoreDist = smoothstep(0.85, 1.08, vIslandDist);
-        float shoreFoam = 1.0 - shoreDist;
-        // two overlapping foam patterns at different scales
-        float fp1 = sin(vWorldPos.x * 8.0 + uTime * 1.2) * sin(vWorldPos.z * 8.0 + uTime * 0.9);
-        float fp2 = sin(vWorldPos.x * 14.0 - uTime * 0.7) * sin(vWorldPos.z * 14.0 + uTime * 1.1);
-        float foamPattern = max(smoothstep(-0.1, 0.4, fp1), smoothstep(0.0, 0.5, fp2) * 0.6);
-        shoreFoam *= foamPattern;
-        // pulsing shore advance/retreat
-        float shoreAdvance = sin(uTime * 0.6) * 0.03;
-        shoreFoam *= smoothstep(0.82 + shoreAdvance, 1.05, vIslandDist) < 0.5 ? 1.2 : 0.8;
-        waterCol = mix(waterCol, uFoamColor, clamp(shoreFoam, 0.0, 1.0) * 0.65);
+        // ── SHORE FOAM — breaking waves crashing on island ──
+        float shoreT = 1.0 - smoothstep(0.82, 1.12, vIslandDist);
+        // animated wave crash cycle
+        float crashPhase = uTime * 0.5;
+        float crashWave = sin(vIslandDist * 15.0 - crashPhase) * 0.5 + 0.5;
+        float crashWave2 = sin(vIslandDist * 22.0 - crashPhase * 1.3 + 1.5) * 0.5 + 0.5;
+        // foam pattern with noisy edges
+        float shFoamTex = fbmFoam(vWorldPos.xz * 5.0 + vec2(uTime * 0.3));
+        float shoreFoam = shoreT * max(crashWave, crashWave2 * 0.7) * (0.5 + shFoamTex * 0.5);
+        // trailing dissolve pattern
+        float dissolve = vnoise(vWorldPos.xz * 15.0 + uTime * vec2(0.2, -0.3));
+        shoreFoam *= smoothstep(0.2, 0.5, dissolve + shoreT * 0.3);
+        waterCol = mix(waterCol, foamCol, clamp(shoreFoam, 0.0, 1.0) * 0.75);
 
-        // ── TRANSPARENCY — depth + foam + angle ──
-        float alpha = mix(0.75, 0.3, smoothstep(0.2, 1.0, vDepth));
-        alpha = mix(alpha, 0.8, shoreFoam * 0.5);
-        alpha = mix(alpha, 0.85, fresnel * 0.3);
+        // ── TRANSPARENCY — deeper = more opaque (absorption), foam = opaque ──
+        float alpha = mix(0.82, 0.4, smoothstep(0.15, 0.9, vDepth));
+        alpha = max(alpha, fresnel * 0.6 + 0.3);
+        // foam makes water opaque
+        alpha = mix(alpha, 0.95, clamp(foam + shoreFoam, 0.0, 1.0));
+        // near island is more opaque (seeing the ground through)
+        if (vIslandDist < 1.0) alpha = mix(alpha, 0.6, 1.0 - vIslandDist);
 
-        // ── CAUSTICS — layered for realism ──
+        // ── CAUSTICS — triple-layer shimmer ──
         float c1 = sin(vWorldPos.x * 15.0 + uTime * 2.0) * sin(vWorldPos.z * 15.0 - uTime * 1.5);
         float c2 = sin(vWorldPos.x * 22.0 - uTime * 1.3) * sin(vWorldPos.z * 18.0 + uTime * 1.8);
-        float caustic = pow(max(c1, 0.0), 3.0) + pow(max(c2, 0.0), 4.0) * 0.5;
-        waterCol += vec3(caustic * 0.06) * (1.0 - vDepth);
+        float c3 = sin(vWorldPos.x * 30.0 + uTime * 0.9) * sin(vWorldPos.z * 25.0 - uTime * 1.1);
+        float caustic = pow(max(c1, 0.0), 3.0) + pow(max(c2, 0.0), 4.0) * 0.4 + pow(max(c3, 0.0), 5.0) * 0.2;
+        waterCol += vec3(caustic * 0.05) * (1.0 - vDepth) * (1.0 - foam);
 
         // ── MOUSE RIPPLES ──
         for (int i = 0; i < 5; i++) {
@@ -897,8 +976,8 @@ function createIsland(land) {
           float ring2 = exp(-pow((dist - radius * 0.7) * 7.0, 2.0));
           float fade = rip.z * (1.0 - age / 2.5);
           float ripple = (ring + ring2 * 0.5) * fade;
-          waterCol = mix(waterCol, uFoamColor, ripple * 0.45);
-          alpha = min(1.0, alpha + ripple * 0.15);
+          waterCol = mix(waterCol, foamCol, ripple * 0.5);
+          alpha = min(1.0, alpha + ripple * 0.2);
         }
 
         gl_FragColor = vec4(waterCol, alpha);
@@ -915,6 +994,7 @@ function createIsland(land) {
   water.userData.origZ = waterOrigZ;
   water.userData.waves = gerstnerWaves;
   water.userData.uniforms = waterUniforms;
+  water.userData.jacobian = jacobianAttr;
   group.add(water);
 
   // ── TREES (varied sizes) ─────────────────
@@ -2074,6 +2154,8 @@ function animate() {
       const windAmpMod = 0.7 + wind.strength * 0.5;
       const windSpeedMod = 0.8 + wind.strength * 0.4;
 
+      const jacobian = child.userData.jacobian;
+
       for (let i = 0; i < pos.count; i++) {
         const ox = origX[i], oz = origZ[i];
         const wd = Math.sqrt(ox * ox + oz * oz) / RADIUS;
@@ -2081,6 +2163,9 @@ function animate() {
         const dampen = Math.max(0, Math.min(1, (wd - 0.85) * 4));
 
         let dx = 0, dy = 0, dz = 0;
+        // Jacobian partial derivatives for foam computation
+        let ddx_dx = 0, ddz_dz = 0, ddx_dz = 0, ddz_dx = 0;
+
         // sum Gerstner waves — wind modulates amplitude
         for (const w of waves) {
           // waves aligned with wind get amplitude boost
@@ -2095,13 +2180,25 @@ function animate() {
           dx += w.steep * amp * w.dir[0] * c;
           dz += w.steep * amp * w.dir[1] * c;
           dy += amp * s;
+
+          // Jacobian: J = (1 - d(dx)/d(ox)) * (1 - d(dz)/d(oz)) - d(dx)/d(oz) * d(dz)/d(ox)
+          const qfa = w.steep * amp * w.freq;
+          ddx_dx -= w.dir[0] * w.dir[0] * qfa * (-s);
+          ddz_dz -= w.dir[1] * w.dir[1] * qfa * (-s);
+          ddx_dz -= w.dir[0] * w.dir[1] * qfa * (-s);
+          ddz_dx -= w.dir[1] * w.dir[0] * qfa * (-s);
         }
 
         pos.setX(i, ox + dx * dampen);
         pos.setY(i, origY[i] + dy * dampen);
         pos.setZ(i, oz + dz * dampen);
+
+        // Jacobian determinant — < 1 means wave breaking
+        const J = (1.0 + ddx_dx) * (1.0 + ddz_dz) - ddx_dz * ddz_dx;
+        jacobian[i] = J * dampen + (1.0 - dampen); // relax to 1 near island
       }
       pos.needsUpdate = true;
+      child.geometry.attributes.aJacobian.needsUpdate = true;
       child.geometry.computeVertexNormals();
     }
     if (child.userData.isFlower) {
