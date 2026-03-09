@@ -37,6 +37,10 @@
     cursor: pointer;
     transition: all 0.3s ease;
     letter-spacing: 0.5px;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: btnEntrance 0.5s ease-out forwards;
+    position: relative;
   }
   .land-btn:hover {
     background: rgba(255,255,255,0.25);
@@ -47,6 +51,54 @@
     background: rgba(255,255,255,0.35);
     border-color: rgba(255,255,255,0.6);
     box-shadow: 0 4px 20px rgba(180,160,120,0.15);
+  }
+  @keyframes btnEntrance {
+    from { opacity: 0; transform: translateY(20px) scale(0.92); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Tooltip */
+  .land-tooltip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: rgba(30, 28, 40, 0.88);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 8px 14px;
+    color: #d8d0c4;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.45;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 20;
+  }
+  .land-tooltip .tooltip-name {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+    color: #f0e8dc;
+  }
+  .land-tooltip .tooltip-desc {
+    opacity: 0.75;
+  }
+  .land-tooltip .tooltip-swatch {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .land-btn:hover .land-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 
 </style>
@@ -71,6 +123,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const LANDS = [
   {
     name: 'Meadow',
+    desc: 'Rolling green hills with wildflowers and butterflies',
     treeStyle: 'round',
     colors: {
       grass: '#7ecc7e', grassDark: '#5aaa5a', grassLight: '#a8e098', grassPale: '#c8eeb8',
@@ -97,6 +150,7 @@ const LANDS = [
   },
   {
     name: 'Mushroom Grove',
+    desc: 'Bioluminescent fungi in a misty twilight hollow',
     treeStyle: 'mushroom',
     colors: {
       grass: '#5a9a70', grassDark: '#3a7a50', grassLight: '#80b888', grassPale: '#a0d0a0',
@@ -123,6 +177,7 @@ const LANDS = [
   },
   {
     name: 'Crystal Peaks',
+    desc: 'Frozen spires rise through snowdrifts and mist',
     treeStyle: 'crystal',
     colors: {
       grass: '#88a0b0', grassDark: '#6880a0', grassLight: '#a8c0c8', grassPale: '#c0d0d8',
@@ -148,6 +203,7 @@ const LANDS = [
   },
   {
     name: 'Autumn Vale',
+    desc: 'Golden canopy with drifting leaves and warm light',
     treeStyle: 'round',
     colors: {
       grass: '#b09050', grassDark: '#907030', grassLight: '#c8a860', grassPale: '#d8c080',
@@ -174,6 +230,7 @@ const LANDS = [
   },
   {
     name: 'Coral Atoll',
+    desc: 'Tropical reef with turquoise shallows and coral branches',
     treeStyle: 'coral',
     colors: {
       grass: '#50b080', grassDark: '#308860', grassLight: '#78c898', grassPale: '#a0e0b0',
@@ -200,6 +257,7 @@ const LANDS = [
   },
   {
     name: 'Spirit Forest',
+    desc: 'Ancient trees with glowing spirits in deep shadow',
     treeStyle: 'tall',
     colors: {
       grass: '#2a5838', grassDark: '#183820', grassLight: '#3a7048', grassPale: '#488858',
@@ -226,6 +284,7 @@ const LANDS = [
   },
   {
     name: 'Volcanic',
+    desc: 'Smoldering peaks with lava veins and ashen rock',
     treeStyle: 'round',
     colors: {
       grass: '#506048', grassDark: '#384030', grassLight: '#687858', grassPale: '#788868',
@@ -658,7 +717,7 @@ function createIsland(land) {
     { dir: [-0.7, -0.7],amp: 0.008, freq: 3.8, speed: 2.5, steep: 0.3 },
   ];
 
-  // water shader — fresnel + specular + depth color + foam
+  // water shader — fresnel + specular + depth color + foam + ripples
   const waterUniforms = {
     uTime: { value: 0 },
     uShallow: { value: new THREE.Color(land.colors.waterShallow) },
@@ -669,6 +728,11 @@ function createIsland(land) {
     uSunColor: { value: new THREE.Color(0xfff4e0) },
     uIslandR: { value: RADIUS },
     uWaterR: { value: waterR },
+    uRipples: { value: [
+      new THREE.Vector4(0,0,0,-99), new THREE.Vector4(0,0,0,-99),
+      new THREE.Vector4(0,0,0,-99), new THREE.Vector4(0,0,0,-99),
+      new THREE.Vector4(0,0,0,-99),
+    ]},
   };
 
   const waterMat = new THREE.ShaderMaterial({
@@ -700,6 +764,7 @@ function createIsland(land) {
       uniform vec3 uSunColor;
       uniform float uIslandR;
       uniform float uWaterR;
+      uniform vec4 uRipples[5]; // xy = position, z = strength, w = birth time
       varying vec3 vWorldPos;
       varying vec3 vNormal;
       varying float vDepth;
@@ -747,6 +812,22 @@ function createIsland(land) {
         float caustic = sin(vWorldPos.x * 15.0 + uTime * 2.0) * sin(vWorldPos.z * 15.0 - uTime * 1.5);
         caustic = pow(max(caustic, 0.0), 3.0);
         waterCol += vec3(caustic * 0.08);
+
+        // mouse ripples — expanding concentric rings
+        for (int i = 0; i < 5; i++) {
+          vec4 rip = uRipples[i];
+          float age = uTime - rip.w;
+          if (age < 0.0 || age > 2.5) continue;
+          float dist = length(vWorldPos.xz - rip.xy);
+          float radius = age * 1.8;
+          float ring = exp(-pow((dist - radius) * 6.0, 2.0));
+          // second ring, slightly behind
+          float ring2 = exp(-pow((dist - radius * 0.7) * 7.0, 2.0));
+          float fade = rip.z * (1.0 - age / 2.5);
+          float ripple = (ring + ring2 * 0.5) * fade;
+          waterCol = mix(waterCol, uFoamColor, ripple * 0.45);
+          alpha = min(1.0, alpha + ripple * 0.15);
+        }
 
         gl_FragColor = vec4(waterCol, alpha);
       }
@@ -1792,8 +1873,29 @@ const uiContainer = document.getElementById('ui');
 LANDS.forEach((land, i) => {
   const btn = document.createElement('button');
   btn.className = 'land-btn' + (i === 0 ? ' active' : '');
+  btn.style.animationDelay = `${0.3 + i * 0.08}s`;
   btn.textContent = land.name;
   btn.addEventListener('click', () => switchToLand(i));
+
+  // tooltip
+  const tooltip = document.createElement('div');
+  tooltip.className = 'land-tooltip';
+  const nameRow = document.createElement('div');
+  nameRow.className = 'tooltip-name';
+  [land.colors.grass, land.colors.foliage, land.colors.water].forEach(c => {
+    const swatch = document.createElement('span');
+    swatch.className = 'tooltip-swatch';
+    swatch.style.background = c;
+    nameRow.appendChild(swatch);
+  });
+  nameRow.appendChild(document.createTextNode(land.name));
+  const descRow = document.createElement('div');
+  descRow.className = 'tooltip-desc';
+  descRow.textContent = land.desc;
+  tooltip.appendChild(nameRow);
+  tooltip.appendChild(descRow);
+  btn.appendChild(tooltip);
+
   uiContainer.appendChild(btn);
 });
 
@@ -1952,6 +2054,41 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── WATER RIPPLE RAYCASTER ─────────────────────
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let rippleIndex = 0;
+let lastRippleTime = 0;
+
+renderer.domElement.addEventListener('pointermove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+  const now = clock.getElapsedTime();
+  if (now - lastRippleTime < 0.15) return; // throttle
+
+  raycaster.setFromCamera(mouse, camera);
+  // find water mesh
+  const waterMeshes = [];
+  islandGroup.traverse(child => {
+    if (child.userData.isWaveWater) waterMeshes.push(child);
+  });
+  const hits = raycaster.intersectObjects(waterMeshes);
+  if (hits.length > 0) {
+    const pt = hits[0].point;
+    const uniforms = hits[0].object.userData.uniforms;
+    if (uniforms && uniforms.uRipples) {
+      const rip = uniforms.uRipples.value[rippleIndex % 5];
+      rip.x = pt.x;
+      rip.y = pt.z;
+      rip.z = 0.8;
+      rip.w = now;
+      rippleIndex++;
+      lastRippleTime = now;
+    }
+  }
 });
 </script>
 </body>
