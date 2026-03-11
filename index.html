@@ -1166,9 +1166,95 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 // ── POST-PROCESSING ────────────────────────────
+// Depth render target for SSAO + DoF
+const depthTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+  minFilter: THREE.NearestFilter,
+  magFilter: THREE.NearestFilter,
+  type: THREE.FloatType,
+});
+depthTarget.depthTexture = new THREE.DepthTexture();
+depthTarget.depthTexture.type = THREE.UnsignedIntType;
+
 const composer = new EffectComposer(renderer);
 const renderPass = new RenderPass(scene, camera);
 composer.addPass(renderPass);
+
+// ── SSAO — screen-space ambient occlusion for depth and grounding ──
+const ssaoShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    tDepth: { value: depthTarget.depthTexture },
+    uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    uCameraNear: { value: 0.1 },
+    uCameraFar: { value: 250 },
+    uIntensity: { value: 0.55 },
+    uRadius: { value: 0.35 },
+    uBias: { value: 0.025 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform sampler2D tDepth;
+    uniform vec2 uResolution;
+    uniform float uCameraNear;
+    uniform float uCameraFar;
+    uniform float uIntensity;
+    uniform float uRadius;
+    uniform float uBias;
+    varying vec2 vUv;
+
+    float getLinearDepth(vec2 uv) {
+      float z = texture2D(tDepth, uv).r;
+      return (2.0 * uCameraNear) / (uCameraFar + uCameraNear - z * (uCameraFar - uCameraNear));
+    }
+
+    // hash for sample directions
+    float ssaoHash(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+
+    void main() {
+      vec4 col = texture2D(tDiffuse, vUv);
+      float depth = getLinearDepth(vUv);
+
+      // skip very far or very near pixels
+      if (depth > 0.98 || depth < 0.001) {
+        gl_FragColor = col;
+        return;
+      }
+
+      float occlusion = 0.0;
+      float pixelR = uRadius / (depth * uCameraFar);
+
+      // 12 sample spiral disc — good quality for the cost
+      for (int i = 0; i < 12; i++) {
+        float angle = float(i) * 2.3998 + ssaoHash(vUv * 500.0 + float(i)) * 0.5; // golden angle + jitter
+        float radius = (float(i) + 0.5) / 12.0;
+        vec2 offset = vec2(cos(angle), sin(angle)) * radius * pixelR;
+        float sampleDepth = getLinearDepth(vUv + offset);
+        float diff = depth - sampleDepth;
+        // occlude if sample is closer than us (within bias)
+        occlusion += step(uBias * depth, diff) * smoothstep(0.0, pixelR * 2.0, diff);
+      }
+      occlusion = 1.0 - (occlusion / 12.0) * uIntensity;
+      // soft clamp — don't go fully black
+      occlusion = mix(0.4, 1.0, occlusion);
+
+      // apply AO as a multiply — darken crevices, keep highlights
+      gl_FragColor = vec4(col.rgb * occlusion, col.a);
+    }
+  `,
+};
+const ssaoPass = new ShaderPass(ssaoShader);
+composer.addPass(ssaoPass);
 
 // Bloom — makes specular, glow spots, lava, and fireflies pop
 const bloomPass = new UnrealBloomPass(
@@ -1302,6 +1388,83 @@ const colorGradeShader = {
 };
 const colorGradePass = new ShaderPass(colorGradeShader);
 composer.addPass(colorGradePass);
+
+// ── DEPTH OF FIELD — cinematic bokeh for dreamy Ghibli look ──
+const dofShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    tDepth: { value: depthTarget.depthTexture },
+    uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+    uCameraNear: { value: 0.1 },
+    uCameraFar: { value: 250 },
+    uFocalDepth: { value: 0.08 },  // focus distance (linear depth)
+    uFocalRange: { value: 0.06 },  // depth range that's sharp
+    uMaxBlur: { value: 3.0 },      // max blur radius in pixels
+    uEnabled: { value: 1.0 },      // 0 to disable
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform sampler2D tDepth;
+    uniform vec2 uResolution;
+    uniform float uCameraNear;
+    uniform float uCameraFar;
+    uniform float uFocalDepth;
+    uniform float uFocalRange;
+    uniform float uMaxBlur;
+    uniform float uEnabled;
+    varying vec2 vUv;
+
+    float dofLinearDepth(vec2 uv) {
+      float z = texture2D(tDepth, uv).r;
+      return (2.0 * uCameraNear) / (uCameraFar + uCameraNear - z * (uCameraFar - uCameraNear));
+    }
+
+    void main() {
+      if (uEnabled < 0.5) {
+        gl_FragColor = texture2D(tDiffuse, vUv);
+        return;
+      }
+
+      float depth = dofLinearDepth(vUv);
+      float blur = clamp(abs(depth - uFocalDepth) / uFocalRange, 0.0, 1.0) * uMaxBlur;
+
+      // no blur needed — sharp zone
+      if (blur < 0.5) {
+        gl_FragColor = texture2D(tDiffuse, vUv);
+        return;
+      }
+
+      // hexagonal bokeh — 12 samples in a disc
+      vec3 col = vec3(0.0);
+      float total = 0.0;
+      vec2 texel = blur / uResolution;
+      for (int i = 0; i < 12; i++) {
+        float angle = float(i) * 0.5236; // 2π/12
+        float r = 0.5 + float(i % 3) * 0.25; // 3 rings
+        vec2 offset = vec2(cos(angle), sin(angle)) * r * texel;
+        vec3 s = texture2D(tDiffuse, vUv + offset).rgb;
+        // bright bokeh weighting — bright samples bloom more (anamorphic feel)
+        float w = 1.0 + max(0.0, dot(s, vec3(0.333)) - 0.5) * 2.0;
+        col += s * w;
+        total += w;
+      }
+      // blend with center sample for smoothness
+      vec3 center = texture2D(tDiffuse, vUv).rgb;
+      col = mix(center, col / total, smoothstep(0.5, 2.0, blur));
+
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+};
+const dofPass = new ShaderPass(dofShader);
+composer.addPass(dofPass);
 
 // ── UNDERWATER POST-PROCESSING — submerged view with caustics, distortion, god rays ──
 const underwaterShader = {
@@ -1458,12 +1621,82 @@ const toonGrad5 = createToonGradient(6, 0.44);
 const toonGrad6 = createToonGradient(8, 0.42);
 
 // reflective material for foliage/vegetation — waxy leaf sheen
+// shared sun direction uniform — all foliage materials reference the same object
+const _foliageSunDir = new THREE.Vector3(0.5, 0.8, 0.3).normalize();
+
+// foliage material with backlit translucency (Ghibli SSS — light glowing through leaves)
 function createFoliageMat(color, opts = {}) {
-  return new THREE.MeshPhongMaterial({
-    color: new THREE.Color(color),
-    specular: new THREE.Color(opts.specular || 0x445533),
-    shininess: opts.shininess || 18,
-    ...opts,
+  const col = new THREE.Color(color);
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uColor: { value: col },
+      uSpecular: { value: new THREE.Color(opts.specular || 0x445533) },
+      uShininess: { value: opts.shininess || 18 },
+      uSSSColor: { value: col.clone().lerp(new THREE.Color(0xffeeaa), 0.35) }, // warm golden translucency
+      uSSSStrength: { value: 0.45 },
+      uSunDir: { value: _foliageSunDir }, // shared reference — updates all foliage at once
+    },
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      varying vec3 vViewDir;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+        vWorldPos = worldPos.xyz;
+        vViewDir = normalize(cameraPosition - worldPos.xyz);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform vec3 uSpecular;
+      uniform float uShininess;
+      uniform vec3 uSSSColor;
+      uniform float uSSSStrength;
+      uniform vec3 uSunDir;
+
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      varying vec3 vViewDir;
+
+      void main() {
+        vec3 norm = normalize(vNormal);
+        vec3 viewDir = normalize(vViewDir);
+
+        // ── TOON DIFFUSE — 3-band stepped lighting ──
+        vec3 sunDir = normalize(uSunDir);
+        float NdotL = dot(norm, sunDir);
+        // 3-step toon bands
+        float toon = NdotL > 0.4 ? 1.0 : (NdotL > -0.1 ? 0.7 : 0.45);
+        vec3 col = uColor * toon;
+
+        // ── AMBIENT ──
+        col += uColor * 0.25;
+
+        // ── SPECULAR — soft Phong highlight ──
+        vec3 halfDir = normalize(sunDir + viewDir);
+        float spec = pow(max(dot(norm, halfDir), 0.0), uShininess);
+        col += uSpecular * spec * 0.3;
+
+        // ── BACKLIT TRANSLUCENCY (SSS) — the Ghibli magic ──
+        // light passing through the leaf, seen from the back side
+        float backlit = pow(max(dot(viewDir, -sunDir), 0.0), 3.0);
+        // also glow on thin edges where view is perpendicular to normal
+        float thinEdge = pow(1.0 - abs(dot(norm, viewDir)), 2.5);
+        // combine: backlit when sun is behind leaves + thin edge glow
+        float sss = backlit * 0.7 + thinEdge * 0.3;
+        // stronger when the face is angled away from sun (back face effect)
+        float backFace = max(0.0, -NdotL) * 0.6 + 0.4;
+        col += uSSSColor * sss * backFace * uSSSStrength;
+
+        // ── RIM LIGHT — soft edge glow ──
+        float rim = pow(1.0 - max(dot(norm, viewDir), 0.0), 4.0);
+        col += uSSSColor * rim * 0.12;
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `,
   });
 }
 // reflective material for trunks — subtle bark sheen
@@ -2609,7 +2842,7 @@ function createIsland(land) {
         const rock = new THREE.Mesh(rockGeo, rockMat);
         rock.position.set(rx + ox, rh + rockSize * 0.2, rz + oz);
         rock.rotation.set(seededRandom() * 2, seededRandom() * 2, seededRandom() * 2);
-        rock.castShadow = true;
+        rock.receiveShadow = true;
         group.add(rock);
       }
     }
@@ -3267,7 +3500,7 @@ function createClouds(land) {
       });
       const puff = new THREE.Mesh(pGeo, pMat);
       puff.position.set(px, py, pz);
-      puff.castShadow = true;
+      puff.castShadow = false; // clouds are overhead — casting shadows costs too much for little gain
       cloudG.add(puff);
     }
 
@@ -3501,6 +3734,7 @@ function updateDayNight(tod) {
   const t = dayTime % 1;
   const sunAngle = t * Math.PI * 2 - Math.PI * 0.5;
   sunLight.position.set(Math.cos(sunAngle) * 10, Math.sin(sunAngle) * 12 + 2, 5);
+  _foliageSunDir.copy(sunLight.position).normalize(); // update shared foliage SSS direction
 
   // ── RIM LIGHT tracks opposite sun — Ghibli backlit edge glow ──
   rimLight.position.set(-Math.cos(sunAngle) * 6, 8, -5);
@@ -5546,6 +5780,27 @@ function animate() {
   }
 
   if (!walkMode) controls.update();
+
+  // ── DEPTH OF FIELD — dynamic focal distance based on camera target ──
+  {
+    const target = walkMode
+      ? camera.position.clone().add(_walkLookDir.clone().normalize().multiplyScalar(3))
+      : controls.target;
+    const focalDist = camera.position.distanceTo(target);
+    // convert world distance to linear depth (0-1 range)
+    const linearFocal = (focalDist - 0.1) / (250 - 0.1);
+    dofPass.uniforms.uFocalDepth.value = Math.max(0.01, Math.min(0.5, linearFocal));
+    // wider focal range in walk mode (sharper nearby vision)
+    dofPass.uniforms.uFocalRange.value = walkMode ? 0.12 : 0.06;
+    // subtler in walk mode, stronger in cinematic
+    dofPass.uniforms.uMaxBlur.value = walkMode ? 1.5 : ((typeof cinematicMode !== 'undefined' && cinematicMode) ? 4.0 : 3.0);
+  }
+
+  // render depth pass for SSAO + DoF (render scene to depth target)
+  renderer.setRenderTarget(depthTarget);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+
   composer.render();
 }
 
@@ -6452,6 +6707,9 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   composer.setSize(window.innerWidth, window.innerHeight);
   bloomPass.resolution.set(window.innerWidth, window.innerHeight);
+  depthTarget.setSize(window.innerWidth, window.innerHeight);
+  ssaoPass.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
+  dofPass.uniforms.uResolution.value.set(window.innerWidth, window.innerHeight);
 });
 
 // ── WATER RIPPLE RAYCASTER ─────────────────────
