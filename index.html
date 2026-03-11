@@ -1187,9 +1187,9 @@ const ssaoShader = {
     uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
     uCameraNear: { value: 0.1 },
     uCameraFar: { value: 250 },
-    uIntensity: { value: 0.55 },
-    uRadius: { value: 0.35 },
-    uBias: { value: 0.025 },
+    uIntensity: { value: 0.4 },   // subtle — Ghibli style shouldn't be grimy
+    uRadius: { value: 0.25 },     // tighter radius for clean crevice darkening
+    uBias: { value: 0.015 },      // smaller bias to catch fine detail
   },
   vertexShader: `
     varying vec2 vUv;
@@ -1232,21 +1232,28 @@ const ssaoShader = {
       }
 
       float occlusion = 0.0;
-      float pixelR = uRadius / (depth * uCameraFar);
+      // scale radius by depth so AO is consistent at all distances
+      float pixelR = uRadius / max(depth * uCameraFar, 0.5);
+      // clamp to reasonable screen-space size
+      pixelR = min(pixelR, 0.03);
 
-      // 12 sample spiral disc — good quality for the cost
-      for (int i = 0; i < 12; i++) {
-        float angle = float(i) * 2.3998 + ssaoHash(vUv * 500.0 + float(i)) * 0.5; // golden angle + jitter
-        float radius = (float(i) + 0.5) / 12.0;
-        vec2 offset = vec2(cos(angle), sin(angle)) * radius * pixelR;
+      // 16 sample golden-angle spiral — balanced quality/performance
+      for (int i = 0; i < 16; i++) {
+        float angle = float(i) * 2.3998 + ssaoHash(vUv * 500.0 + float(i)) * 0.8;
+        float r = sqrt((float(i) + 0.5) / 16.0); // sqrt for uniform disc distribution
+        vec2 offset = vec2(cos(angle), sin(angle)) * r * pixelR;
         float sampleDepth = getLinearDepth(vUv + offset);
         float diff = depth - sampleDepth;
-        // occlude if sample is closer than us (within bias)
-        occlusion += step(uBias * depth, diff) * smoothstep(0.0, pixelR * 2.0, diff);
+        // range check — only occlude from nearby geometry, not distant objects
+        float rangeCheck = smoothstep(0.0, 1.0, uRadius / (abs(diff) * uCameraFar + 0.001));
+        occlusion += step(uBias * depth, diff) * rangeCheck;
       }
-      occlusion = 1.0 - (occlusion / 12.0) * uIntensity;
-      // soft clamp — don't go fully black
-      occlusion = mix(0.4, 1.0, occlusion);
+      occlusion = 1.0 - (occlusion / 16.0) * uIntensity;
+      // soft clamp — Ghibli style: subtle grounding, not grimy
+      occlusion = mix(0.5, 1.0, clamp(occlusion, 0.0, 1.0));
+      // fade AO at distance — close objects get full AO, far objects none
+      float aoFade = 1.0 - smoothstep(0.0, 0.3, depth);
+      occlusion = mix(1.0, occlusion, aoFade);
 
       // apply AO as a multiply — darken crevices, keep highlights
       gl_FragColor = vec4(col.rgb * occlusion, col.a);
@@ -1397,9 +1404,9 @@ const dofShader = {
     uResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
     uCameraNear: { value: 0.1 },
     uCameraFar: { value: 250 },
-    uFocalDepth: { value: 0.08 },  // focus distance (linear depth)
-    uFocalRange: { value: 0.06 },  // depth range that's sharp
-    uMaxBlur: { value: 3.0 },      // max blur radius in pixels
+    uFocalDepth: { value: 0.05 },  // focus distance (linear depth, ~12 world units)
+    uFocalRange: { value: 0.08 },  // wide-ish sharp zone for dreamy but readable
+    uMaxBlur: { value: 2.5 },      // gentle bokeh — Ghibli soft, not cinema aggressive
     uEnabled: { value: 1.0 },      // 0 to disable
   },
   vertexShader: `
@@ -1441,23 +1448,25 @@ const dofShader = {
         return;
       }
 
-      // hexagonal bokeh — 12 samples in a disc
+      // golden-angle bokeh disc — 16 samples with bright-weighted highlights
       vec3 col = vec3(0.0);
       float total = 0.0;
       vec2 texel = blur / uResolution;
-      for (int i = 0; i < 12; i++) {
-        float angle = float(i) * 0.5236; // 2π/12
-        float r = 0.5 + float(i % 3) * 0.25; // 3 rings
+      for (int i = 0; i < 16; i++) {
+        float angle = float(i) * 2.3998; // golden angle
+        float r = sqrt((float(i) + 1.0) / 16.0); // uniform disc distribution
         vec2 offset = vec2(cos(angle), sin(angle)) * r * texel;
         vec3 s = texture2D(tDiffuse, vUv + offset).rgb;
-        // bright bokeh weighting — bright samples bloom more (anamorphic feel)
-        float w = 1.0 + max(0.0, dot(s, vec3(0.333)) - 0.5) * 2.0;
+        // bright bokeh weighting — glowing highlights bloom like anamorphic lenses
+        float lum = dot(s, vec3(0.2126, 0.7152, 0.0722));
+        float w = 1.0 + max(0.0, lum - 0.4) * 3.0;
         col += s * w;
         total += w;
       }
-      // blend with center sample for smoothness
+      // smooth transition from sharp to blurred
       vec3 center = texture2D(tDiffuse, vUv).rgb;
-      col = mix(center, col / total, smoothstep(0.5, 2.0, blur));
+      float blendT = smoothstep(0.3, 1.8, blur);
+      col = mix(center, col / total, blendT);
 
       gl_FragColor = vec4(col, 1.0);
     }
@@ -1625,79 +1634,74 @@ const toonGrad6 = createToonGradient(8, 0.42);
 const _foliageSunDir = new THREE.Vector3(0.5, 0.8, 0.3).normalize();
 
 // foliage material with backlit translucency (Ghibli SSS — light glowing through leaves)
+// Uses MeshPhongMaterial + onBeforeCompile to keep full shadow/lighting + inject SSS
 function createFoliageMat(color, opts = {}) {
   const col = new THREE.Color(color);
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uColor: { value: col },
-      uSpecular: { value: new THREE.Color(opts.specular || 0x445533) },
-      uShininess: { value: opts.shininess || 18 },
-      uSSSColor: { value: col.clone().lerp(new THREE.Color(0xffeeaa), 0.35) }, // warm golden translucency
-      uSSSStrength: { value: 0.45 },
-      uSunDir: { value: _foliageSunDir }, // shared reference — updates all foliage at once
-    },
-    vertexShader: `
-      varying vec3 vNormal;
-      varying vec3 vWorldPos;
-      varying vec3 vViewDir;
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        vec4 worldPos = modelMatrix * vec4(position, 1.0);
-        vWorldPos = worldPos.xyz;
-        vViewDir = normalize(cameraPosition - worldPos.xyz);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 uColor;
-      uniform vec3 uSpecular;
-      uniform float uShininess;
-      uniform vec3 uSSSColor;
-      uniform float uSSSStrength;
-      uniform vec3 uSunDir;
-
-      varying vec3 vNormal;
-      varying vec3 vWorldPos;
-      varying vec3 vViewDir;
-
-      void main() {
-        vec3 norm = normalize(vNormal);
-        vec3 viewDir = normalize(vViewDir);
-
-        // ── TOON DIFFUSE — 3-band stepped lighting ──
-        vec3 sunDir = normalize(uSunDir);
-        float NdotL = dot(norm, sunDir);
-        // 3-step toon bands
-        float toon = NdotL > 0.4 ? 1.0 : (NdotL > -0.1 ? 0.7 : 0.45);
-        vec3 col = uColor * toon;
-
-        // ── AMBIENT ──
-        col += uColor * 0.25;
-
-        // ── SPECULAR — soft Phong highlight ──
-        vec3 halfDir = normalize(sunDir + viewDir);
-        float spec = pow(max(dot(norm, halfDir), 0.0), uShininess);
-        col += uSpecular * spec * 0.3;
-
-        // ── BACKLIT TRANSLUCENCY (SSS) — the Ghibli magic ──
-        // light passing through the leaf, seen from the back side
-        float backlit = pow(max(dot(viewDir, -sunDir), 0.0), 3.0);
-        // also glow on thin edges where view is perpendicular to normal
-        float thinEdge = pow(1.0 - abs(dot(norm, viewDir)), 2.5);
-        // combine: backlit when sun is behind leaves + thin edge glow
-        float sss = backlit * 0.7 + thinEdge * 0.3;
-        // stronger when the face is angled away from sun (back face effect)
-        float backFace = max(0.0, -NdotL) * 0.6 + 0.4;
-        col += uSSSColor * sss * backFace * uSSSStrength;
-
-        // ── RIM LIGHT — soft edge glow ──
-        float rim = pow(1.0 - max(dot(norm, viewDir), 0.0), 4.0);
-        col += uSSSColor * rim * 0.12;
-
-        gl_FragColor = vec4(col, 1.0);
-      }
-    `,
+  const sssColor = col.clone().lerp(new THREE.Color(0xffeeaa), 0.35);
+  const mat = new THREE.MeshPhongMaterial({
+    color: col,
+    specular: new THREE.Color(opts.specular || 0x445533),
+    shininess: opts.shininess || 18,
+    ...opts,
   });
+
+  mat.onBeforeCompile = (shader) => {
+    // inject SSS uniforms
+    shader.uniforms.uSSSColor = { value: sssColor };
+    shader.uniforms.uSSSStrength = { value: 0.45 };
+    shader.uniforms.uSunDir = { value: _foliageSunDir };
+
+    // vertex shader: add view direction varying
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      `#include <common>
+       varying vec3 vViewDirSSS;`
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <fog_vertex>',
+      `#include <fog_vertex>
+       vec4 sssWorldPos = modelMatrix * vec4(transformed, 1.0);
+       vViewDirSSS = normalize(cameraPosition - sssWorldPos.xyz);`
+    );
+
+    // fragment shader: declare uniforms + varying
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+       uniform vec3 uSSSColor;
+       uniform float uSSSStrength;
+       uniform vec3 uSunDir;
+       varying vec3 vViewDirSSS;`
+    );
+
+    // inject SSS computation before the final output
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <output_fragment>',
+      `// ── BACKLIT TRANSLUCENCY (SSS) — the Ghibli magic ──
+       {
+         vec3 sssSun = normalize(uSunDir);
+         vec3 sssView = normalize(vViewDirSSS);
+         // backlit: light passing through leaves when sun is behind them
+         float backlit = pow(max(dot(sssView, -sssSun), 0.0), 3.0);
+         // thin edge: glow where view is perpendicular to surface
+         float thinEdge = pow(1.0 - abs(dot(normal, sssView)), 2.5);
+         float sss = backlit * 0.7 + thinEdge * 0.3;
+         // stronger on faces angled away from sun (actual back side)
+         float sssNdotL = dot(normal, sssSun);
+         float backFace = max(0.0, -sssNdotL) * 0.6 + 0.4;
+         outgoingLight += uSSSColor * sss * backFace * uSSSStrength;
+         // rim glow — soft edge highlight
+         float rim = pow(1.0 - max(dot(normal, sssView), 0.0), 4.0);
+         outgoingLight += uSSSColor * rim * 0.12;
+       }
+       #include <output_fragment>`
+    );
+  };
+
+  // force shader recompilation
+  mat.customProgramCacheKey = () => 'foliage_sss_' + col.getHexString();
+
+  return mat;
 }
 // reflective material for trunks — subtle bark sheen
 function createTrunkMat(color, opts = {}) {
@@ -5789,11 +5793,15 @@ function animate() {
     const focalDist = camera.position.distanceTo(target);
     // convert world distance to linear depth (0-1 range)
     const linearFocal = (focalDist - 0.1) / (250 - 0.1);
-    dofPass.uniforms.uFocalDepth.value = Math.max(0.01, Math.min(0.5, linearFocal));
-    // wider focal range in walk mode (sharper nearby vision)
-    dofPass.uniforms.uFocalRange.value = walkMode ? 0.12 : 0.06;
-    // subtler in walk mode, stronger in cinematic
-    dofPass.uniforms.uMaxBlur.value = walkMode ? 1.5 : ((typeof cinematicMode !== 'undefined' && cinematicMode) ? 4.0 : 3.0);
+    const targetFocal = Math.max(0.01, Math.min(0.5, linearFocal));
+    // smooth focal tracking — don't snap, ease into new focus distance
+    const currentFocal = dofPass.uniforms.uFocalDepth.value;
+    dofPass.uniforms.uFocalDepth.value += (targetFocal - currentFocal) * Math.min(1, dt * 3);
+    // wider focal range in walk mode (sharper nearby vision), tighter in cinematic
+    const isCinematic = typeof cinematicMode !== 'undefined' && cinematicMode;
+    dofPass.uniforms.uFocalRange.value = walkMode ? 0.15 : (isCinematic ? 0.05 : 0.08);
+    // subtler in walk mode, dreamier in cinematic
+    dofPass.uniforms.uMaxBlur.value = walkMode ? 1.0 : (isCinematic ? 3.5 : 2.5);
   }
 
   // render depth pass for SSAO + DoF (render scene to depth target)
