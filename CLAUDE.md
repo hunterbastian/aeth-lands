@@ -4,7 +4,7 @@ Interactive 3D floating island viewer with Ghibli-inspired aesthetics. Procedura
 
 ## Architecture
 
-Single-file app (`index.html`, ~2963 lines). HTML + CSS + JS in one file. No build step, no bundler, no external models.
+Single-file app (`index.html`, ~6200 lines). HTML + CSS + JS in one file. No build step, no bundler, no external models.
 
 ### Tech Stack
 - **Three.js** v0.163.0 via CDN import map (ES modules)
@@ -96,6 +96,17 @@ Every biome in `LANDS[]` has:
 - **Color grading**: Saturation boost (1.15), contrast (1.08), vignette (0.35), all dynamic per time of day
 - `preserveDrawingBuffer: true` on renderer for screenshot support
 
+### 3D Sun Model
+- Replaces billboard shader with actual Three.js geometry
+- Core: deformed IcosahedronGeometry (detail 3) with organic noise bumps, MeshBasicMaterial
+- Inner glow: larger BackSide icosahedron, warm translucent
+- Outer haze: even larger BackSide icosahedron, soft atmospheric scatter
+- 8 primary ray spikes (ConeGeometry) + 12 secondary rays, arranged radially in pivot groups
+- Rays slowly rotate (primary CW, secondary CCW) with individual length pulsing
+- Core gently rotates for liveliness, whole group breathes (scale pulse)
+- Colors track sunLight.color per TOD, opacity tracks sun-above-horizon
+- Still projects to screen space for god ray shader
+
 ### Lighting Rig (5 lights + hemisphere)
 - Ambient: soft fill
 - Sun (directional): main light, 4096×4096 shadow map with normalBias, position orbits with day/night cycle
@@ -182,8 +193,10 @@ All vegetation uses:
 
 ## Cinematic Camera System
 - **Idle detection**: After 15s of no user interaction, enters cinematic mode
-- **Auto-orbit**: Slow orbit around the island with gentle height variation
-- **Tour mode**: Button to cycle through all 7 biomes with smooth camera transitions
+- **10 keyframed shots**: Each with start/end distance, height, angle span, lookAt Y, and duration
+- Shot types: wide establishing, pull-in, low water sweep, overhead, tree-level, dramatic low angle, pullback, height wave, cliff flyby, push-in
+- **smootherStep** interpolation (6th-degree) for buttery transitions between and within shots
+- **Tour mode**: Button to cycle through all biomes (14s per biome) with smooth camera transitions
 - **Tour indicator**: "CINEMATIC" label shown during tour mode
 - Any user interaction (mouse/touch/keyboard) exits cinematic mode immediately
 - Camera smoothly interpolates back to OrbitControls target on exit
@@ -229,6 +242,47 @@ All animated elements use `userData` properties set at creation:
 - `fbm()`: 4-octave fractional Brownian motion (amp * 0.5, freq * 2.1 per octave)
 - `ridgeNoise()` / `ridgeFbm()`: Absolute-value ridge variant for mountain drama
 - Seed values: terrain=42, trees=100, bushes=150, flowers=200, rocks=300, grass=400, clouds=500, glow=600, leaves=700, lava=800, cliff vegetation=900, butterflies=1000
+
+## Weather System
+- Per-biome `weather` ('rain'|'snow'|'none') and `weatherIntensity` (0-1) in LANDS config
+- 600 shared particle pool (`wxPos`, `wxVel`, `wxAlpha`, `wxSize` Float32Arrays)
+- **Rain**: `THREE.LineSegments` with per-vertex alpha, wind-angled streaks, splash rings on water impact (50 pooled ring meshes)
+- **Snow**: `THREE.Points` with custom soft-flake shader, 3 size classes (small/medium/large), gentle drift
+- Weather fades in on biome switch, reinitialized via `initWeather(land)`
+
+## Fog Banks
+- Per-biome `fogBanks` count and `fogOpacity` in LANDS config
+- Soft translucent icosahedron puffs, drift with wind, wrap at boundaries
+- Player proximity fading (opacity reduces when camera enters fog)
+
+## Tide System
+- Gentle sinusoidal tide offset (±0.12 units, 60s period)
+- Applied to water vertex Y positions per-frame
+
+## Mobile Touch Controls
+- Touch detection via `'ontouchstart' in window || navigator.maxTouchPoints > 0`
+- Welcome screen adapts: "tap anywhere", hint keys change (Drag→Touch, Scroll→Pinch, F→Tap walk button, P→Tap photo button)
+- `:active` states on all buttons for touch feedback (scale-down effect)
+- `@media (hover: none)` disables sticky `:hover` states on touch devices
+- `@media (max-width: 600px)` responsive: bigger touch targets, hidden tooltips, repositioned buttons
+- `@media (max-width: 380px)` tighter layout for small phones
+- **Virtual joystick** (walk mode): left-side 120px circle with draggable knob, maps to walkKeys equivalent
+- **Touch look zone** (walk mode): right 50% of screen for camera yaw/pitch via touch drag
+- **Exit button** (walk mode): replaces ESC key for mobile
+- OrbitControls has `enablePan: false` — prevents accidental two-finger panning
+- Photo mode sliders: 22px touch-friendly thumbs on mobile, panel scrollable
+
+## Performance Optimizations
+- Cached animation arrays (`_cachedFlowers`, `_cachedTrees`, etc.) — built once per biome, iterated directly instead of `islandGroup.traverse()` per frame
+- `cachedWaterMesh` direct reference — no traversal for water updates
+- Pre-allocated scratch objects (Color, Vector3, Quaternion) at module scope — zero per-frame GC
+- Sky canvas texture throttled to every 6th frame
+- Shadow map: 2048×2048 (reduced from 4096)
+- Water: 128×128 grid, 8 Gerstner waves (gentle speeds for Ghibli aesthetic)
+
+## Audio (disabled)
+- Full Web Audio API bus architecture exists (musicBus, ambientBus, sfxBus → masterComp → destination)
+- Currently disabled via `return;` at top of `initAudio()`
 
 ## Development
 - Open `index.html` in browser or any local server — zero setup

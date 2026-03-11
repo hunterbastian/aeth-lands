@@ -287,6 +287,489 @@
   }
   #walk-hint.visible { opacity: 1; }
 
+  /* Welcome overlay */
+  #welcome-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 1.2s ease;
+  }
+  #welcome-overlay.hidden { opacity: 0; }
+  #welcome-inner {
+    text-align: center;
+    padding: 32px 48px;
+    background: rgba(20, 18, 30, 0.75);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    max-width: 420px;
+    animation: welcomeIn 0.8s ease-out 0.5s both;
+  }
+  @keyframes welcomeIn {
+    from { opacity: 0; transform: translateY(16px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  #welcome-inner h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #f0e8dc;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+  #welcome-inner .welcome-hints {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .welcome-hint-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #c8c0b4;
+  }
+  .welcome-hint-key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 24px;
+    padding: 0 8px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #e0d8cc;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+  }
+  #welcome-dismiss {
+    font-size: 11px;
+    color: rgba(200,192,180,0.5);
+    letter-spacing: 0.3px;
+  }
+
+  /* Action button tooltips */
+  .action-tooltip {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 8px);
+    transform: translateX(-50%) translateY(-4px);
+    background: rgba(30, 28, 40, 0.88);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #d8d0c4;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 20;
+  }
+  .action-tooltip .tooltip-shortcut {
+    display: inline-block;
+    padding: 1px 5px;
+    margin-left: 6px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #c0b8ac;
+  }
+  #screenshot-btn:hover .action-tooltip,
+  #tour-btn:hover .action-tooltip,
+  #walk-btn:hover .action-tooltip,
+  #photo-btn:hover .action-tooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Photo Mode Button */
+  #photo-btn {
+    position: fixed;
+    top: 20px;
+    right: 182px;
+    width: 44px;
+    height: 44px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(12px);
+    color: #5a4a3a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: all 0.3s ease;
+    opacity: 0;
+    animation: btnEntrance 0.5s ease-out 1.1s forwards;
+  }
+  #photo-btn:hover {
+    background: rgba(255,255,255,0.25);
+    border-color: rgba(255,255,255,0.4);
+    transform: translateY(-2px);
+  }
+  #photo-btn.active {
+    background: rgba(255,255,255,0.35);
+    border-color: rgba(255,255,255,0.6);
+  }
+  #photo-btn svg { width: 20px; height: 20px; }
+
+  /* Photo Mode Panel */
+  #photo-panel {
+    position: fixed;
+    top: 72px;
+    right: 20px;
+    width: 220px;
+    padding: 16px;
+    background: rgba(20, 18, 30, 0.82);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #photo-panel.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  #photo-panel h3 {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0d8cc;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  .photo-control {
+    margin-bottom: 10px;
+  }
+  .photo-control label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #b0a898;
+    margin-bottom: 4px;
+  }
+  .photo-control label span {
+    color: #d8d0c4;
+    font-weight: 500;
+  }
+  .photo-control input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    outline: none;
+  }
+  .photo-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #e0d8cc;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+  }
+  .photo-control input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #e0d8cc;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+  }
+  .photo-control input[type="range"]::-moz-range-track {
+    height: 4px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    border: none;
+  }
+  .photo-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 11px;
+    color: #b0a898;
+    cursor: pointer;
+  }
+  .photo-toggle-switch {
+    width: 32px;
+    height: 18px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 9px;
+    position: relative;
+    transition: background 0.2s ease;
+  }
+  .photo-toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #b0a898;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .photo-toggle-switch.on {
+    background: rgba(160,200,160,0.3);
+  }
+  .photo-toggle-switch.on::after {
+    transform: translateX(14px);
+    background: #c8e0c0;
+  }
+  #photo-time-indicator {
+    font-size: 10px;
+    color: rgba(200,192,180,0.5);
+    text-align: center;
+    margin-top: 8px;
+    letter-spacing: 0.3px;
+  }
+
+  /* Achievement Toast */
+  #achievement-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: rgba(20, 18, 30, 0.88);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 14px;
+    z-index: 40;
+    pointer-events: none;
+    opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease;
+    white-space: nowrap;
+  }
+  #achievement-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  #achievement-toast .ach-icon {
+    font-size: 20px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  #achievement-toast .ach-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  #achievement-toast .ach-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(200, 180, 140, 0.7);
+  }
+  #achievement-toast .ach-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #f0e8dc;
+  }
+  #achievement-toast .ach-desc {
+    font-size: 11px;
+    color: rgba(200,192,180,0.6);
+  }
+  #achievement-toast .ach-progress {
+    width: 100%;
+    height: 2px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 1px;
+    margin-top: 6px;
+    position: absolute;
+    bottom: 6px;
+    left: 16px;
+    right: 16px;
+    width: calc(100% - 32px);
+  }
+  #achievement-toast .ach-progress-bar {
+    height: 100%;
+    background: rgba(200, 180, 140, 0.5);
+    border-radius: 1px;
+    transition: width 0.3s ease;
+  }
+
+  /* ── Touch / Active states ── */
+  .land-btn:active {
+    background: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.5);
+    transform: scale(0.95);
+  }
+  #screenshot-btn:active, #tour-btn:active, #walk-btn:active, #photo-btn:active {
+    background: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.5);
+    transform: scale(0.92);
+  }
+
+  /* ── Virtual Joystick (walk mode on mobile) ── */
+  #touch-joystick {
+    position: fixed;
+    bottom: 40px;
+    left: 40px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    z-index: 30;
+    display: none;
+    touch-action: none;
+  }
+  #touch-joystick-knob {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.3);
+    pointer-events: none;
+    transition: background 0.15s ease;
+  }
+  #touch-joystick-knob.active {
+    background: rgba(255,255,255,0.35);
+  }
+  #touch-look-zone {
+    position: fixed;
+    top: 0; right: 0;
+    width: 50%;
+    height: 100%;
+    z-index: 25;
+    display: none;
+    touch-action: none;
+  }
+  #touch-walk-exit {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 24px;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    background: rgba(30, 28, 40, 0.8);
+    backdrop-filter: blur(12px);
+    color: #d8d0c4;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 30;
+    display: none;
+    cursor: pointer;
+  }
+  #touch-walk-exit:active {
+    background: rgba(255,255,255,0.2);
+  }
+
+  /* ── Mobile Responsive ── */
+  @media (max-width: 600px) {
+    #ui {
+      bottom: 14px;
+      gap: 5px;
+    }
+    .land-btn {
+      padding: 10px 14px;
+      font-size: 12px;
+      border-radius: 11px;
+    }
+    #screenshot-btn, #tour-btn, #walk-btn, #photo-btn {
+      width: 48px;
+      height: 48px;
+    }
+    #screenshot-btn { right: 12px; top: 12px; }
+    #tour-btn { right: 66px; top: 12px; }
+    #walk-btn { right: 120px; top: 12px; }
+    #photo-btn { right: 174px; top: 12px; }
+    #cinematic-indicator { top: 68px; right: 12px; }
+    #welcome-inner {
+      padding: 24px 28px;
+      max-width: 88vw;
+    }
+    #welcome-inner h1 { font-size: 18px; }
+    .welcome-hint-row { font-size: 12px; }
+    .welcome-hint-key { min-width: 24px; height: 22px; font-size: 10px; padding: 0 6px; }
+    #walk-hint { bottom: 70px; font-size: 11px; }
+    #photo-panel {
+      right: 12px;
+      top: 68px;
+      width: 200px;
+      padding: 12px;
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+    }
+    .photo-control input[type="range"]::-webkit-slider-thumb {
+      width: 22px;
+      height: 22px;
+    }
+    .photo-control input[type="range"]::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+    }
+    #achievement-toast {
+      bottom: 60px;
+      padding: 10px 14px;
+      max-width: 85vw;
+    }
+    .action-tooltip { display: none; }
+    .land-tooltip { display: none; }
+  }
+
+  @media (max-width: 380px) {
+    .land-btn {
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    #screenshot-btn, #tour-btn, #walk-btn, #photo-btn {
+      width: 42px;
+      height: 42px;
+    }
+    #tour-btn { right: 60px; }
+    #walk-btn { right: 108px; }
+    #photo-btn { right: 156px; }
+  }
+
+  /* Disable hover effects on touch devices to prevent sticky hover */
+  @media (hover: none) {
+    .land-btn:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.15);
+      transform: none;
+    }
+    #screenshot-btn:hover, #tour-btn:hover, #walk-btn:hover, #photo-btn:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.15);
+      transform: none;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -297,21 +780,93 @@
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
     <circle cx="12" cy="13" r="4"/>
   </svg>
+  <div class="action-tooltip">Screenshot</div>
 </button>
 <button id="tour-btn" title="Cinematic Tour">
   <svg viewBox="0 0 24 24" fill="currentColor">
     <polygon points="6,3 20,12 6,21"/>
   </svg>
+  <div class="action-tooltip">Cinematic Tour</div>
 </button>
+<button id="photo-btn" title="Photo Mode (P)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <circle cx="12" cy="12" r="3"/>
+    <line x1="3" y1="9" x2="21" y2="9"/>
+  </svg>
+  <div class="action-tooltip">Photo Mode<span class="tooltip-shortcut">P</span></div>
+</button>
+<div id="photo-panel">
+  <h3>Photo Mode</h3>
+  <div class="photo-control">
+    <label>Vignette <span id="photo-vig-val">35%</span></label>
+    <input type="range" id="photo-vignette" min="0" max="100" value="35">
+  </div>
+  <div class="photo-control">
+    <label>Saturation <span id="photo-sat-val">108%</span></label>
+    <input type="range" id="photo-saturation" min="50" max="200" value="108">
+  </div>
+  <div class="photo-control">
+    <label>Contrast <span id="photo-con-val">105%</span></label>
+    <input type="range" id="photo-contrast" min="80" max="150" value="105">
+  </div>
+  <div class="photo-control">
+    <label>Temperature <span id="photo-temp-val">0</span></label>
+    <input type="range" id="photo-temperature" min="-100" max="100" value="0">
+  </div>
+  <div class="photo-control">
+    <label>Bloom <span id="photo-bloom-val">15%</span></label>
+    <input type="range" id="photo-bloom" min="0" max="100" value="15">
+  </div>
+  <div class="photo-control">
+    <label>Film Grain <span id="photo-grain-val">3%</span></label>
+    <input type="range" id="photo-grain" min="0" max="30" value="3">
+  </div>
+  <div class="photo-toggle" id="photo-freeze-toggle">
+    <span>Freeze Time</span>
+    <div class="photo-toggle-switch" id="photo-freeze-switch"></div>
+  </div>
+  <div class="photo-toggle" id="photo-hide-ui-toggle">
+    <span>Hide UI</span>
+    <div class="photo-toggle-switch" id="photo-hide-ui-switch"></div>
+  </div>
+  <div id="photo-time-indicator">P to toggle · sliders adjust live</div>
+</div>
 <button id="walk-btn" title="Walk Mode (F)">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="5" r="2"/>
     <path d="M10 22V18L7 15V11L10 9H14L17 11V15L14 18V22"/>
   </svg>
+  <div class="action-tooltip">Walk Mode<span class="tooltip-shortcut">F</span></div>
 </button>
+<div id="welcome-overlay">
+  <div id="welcome-inner">
+    <h1>Aethlands</h1>
+    <div class="welcome-hints">
+      <div class="welcome-hint-row"><span class="welcome-hint-key">Drag</span> Orbit the island</div>
+      <div class="welcome-hint-row"><span class="welcome-hint-key">Scroll</span> Zoom in &amp; out</div>
+      <div class="welcome-hint-row"><span class="welcome-hint-key">F</span> Walk the island on foot</div>
+      <div class="welcome-hint-row"><span class="welcome-hint-key">P</span> Photo mode controls</div>
+      <div class="welcome-hint-row"><span class="welcome-hint-key">Biomes</span> Switch worlds below</div>
+    </div>
+    <div id="welcome-dismiss">click anywhere to begin</div>
+  </div>
+</div>
 <div id="walk-crosshair"></div>
 <div id="walk-hint">WASD move · Mouse look · ESC exit</div>
+<div id="touch-joystick"><div id="touch-joystick-knob"></div></div>
+<div id="touch-look-zone"></div>
+<button id="touch-walk-exit">Exit Walk Mode</button>
 <div id="cinematic-indicator">CINEMATIC</div>
+<div id="achievement-toast">
+  <div class="ach-icon"></div>
+  <div class="ach-text">
+    <div class="ach-label">Discovered</div>
+    <div class="ach-title"></div>
+    <div class="ach-desc"></div>
+  </div>
+  <div class="ach-progress"><div class="ach-progress-bar"></div></div>
+</div>
 
 <script type="importmap">
 {
@@ -337,27 +892,29 @@ const LANDS = [
     desc: 'Rolling green hills with wildflowers and butterflies',
     treeStyle: 'round',
     colors: {
-      grass: '#7ecc7e', grassDark: '#5aaa5a', grassLight: '#a8e098', grassPale: '#c8eeb8',
+      grass: '#82c87a', grassDark: '#5ea858', grassLight: '#aade94', grassPale: '#c8ecb0',
       dirt: '#c89868', dirtDark: '#a07848', dirtLight: '#d8b088',
       sand: '#f0e0b8', sandLight: '#f8ecd0',
       rock: '#9898a8', rockDark: '#707080', rockMoss: '#6a9a68',
       snow: '#f4f0ff',
       water: '#68c0d8', waterShallow: '#98dce8', waterDeep: '#4890b0', waterFoam: '#d8f0f0',
       trunk: '#8e6e42', trunkDark: '#6a4e2a', trunkLight: '#a88a58',
-      foliage: '#4da854', foliageDark: '#358a38', foliageLight: '#78cc70',
+      foliage: '#52a858', foliageDark: '#3a8a3c', foliageLight: '#7acc72',
       flowers: '#ee98b8', flowers2: '#f0c858', flowers3: '#c8a0e0',
       bush: '#3d8848', bushLight: '#60a858',
       cliff: '#907060', cliffDark: '#685040', cliffMoss: '#5a8a50',
     },
-    sky: ['#90c8e8', '#c8e0f0', '#e0eee8'],
-    skyBottom: '#d8ecd8',
-    fog: '#c8dce0',
+    sky: ['#8ec4e8', '#c8dff0', '#e8f0e0'],
+    skyBottom: '#e0ecd0',
+    fog: '#d0dcd4',
     outline: '#4a3828',
     hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
     mountainHeight: 1.8, treeCount: 65, bushCount: 90,
     cloudColor: '#ffffff', cloudShadow: '#c8d0d8',
     ambientColor: '#b8c8d8', sunColor: '#fff0d0',
     hasButterflies: true,
+    weather: 'rain', weatherIntensity: 0.3,
+    fogBanks: 3, fogOpacity: 0.15,
   },
   {
     name: 'Mushroom Grove',
@@ -385,6 +942,8 @@ const LANDS = [
     cloudColor: '#887880', cloudShadow: '#605058',
     ambientColor: '#806878', sunColor: '#d8b8c8',
     hasGlowSpots: true,
+    weather: 'rain', weatherIntensity: 0.5,
+    fogBanks: 5, fogOpacity: 0.25,
   },
   {
     name: 'Crystal Peaks',
@@ -411,6 +970,8 @@ const LANDS = [
     mountainHeight: 2.8, treeCount: 30, bushCount: 0,
     cloudColor: '#d0d8e8', cloudShadow: '#9098b0',
     ambientColor: '#8098b8', sunColor: '#d8e0f0',
+    weather: 'snow', weatherIntensity: 0.7,
+    fogBanks: 4, fogOpacity: 0.2,
   },
   {
     name: 'Autumn Vale',
@@ -438,6 +999,8 @@ const LANDS = [
     cloudColor: '#f0e0c0', cloudShadow: '#c0a880',
     ambientColor: '#c09868', sunColor: '#ffd888',
     hasLeaves: true,
+    weather: 'rain', weatherIntensity: 0.2,
+    fogBanks: 2, fogOpacity: 0.12,
   },
   {
     name: 'Coral Atoll',
@@ -465,6 +1028,8 @@ const LANDS = [
     cloudColor: '#f0f8ff', cloudShadow: '#b8d0d8',
     ambientColor: '#90c8d0', sunColor: '#fff0d8',
     hasButterflies: true,
+    weather: 'none', weatherIntensity: 0,
+    fogBanks: 1, fogOpacity: 0.08,
   },
   {
     name: 'Spirit Forest',
@@ -492,6 +1057,8 @@ const LANDS = [
     cloudColor: '#304030', cloudShadow: '#182818',
     ambientColor: '#304838', sunColor: '#88b088',
     hasGlowSpots: true,
+    weather: 'rain', weatherIntensity: 0.6,
+    fogBanks: 6, fogOpacity: 0.3,
   },
   {
     name: 'Volcanic',
@@ -519,6 +1086,8 @@ const LANDS = [
     cloudColor: '#585050', cloudShadow: '#383030',
     ambientColor: '#504040', sunColor: '#e8a880',
     hasLavaGlow: true,
+    weather: 'none', weatherIntensity: 0,
+    fogBanks: 2, fogOpacity: 0.18,
   },
   {
     name: 'Cherry Blossom',
@@ -547,6 +1116,8 @@ const LANDS = [
     ambientColor: '#c8a8b8', sunColor: '#ffe8d8',
     hasLeaves: true,
     hasButterflies: true,
+    weather: 'rain', weatherIntensity: 0.15,
+    fogBanks: 2, fogOpacity: 0.1,
   },
   {
     name: 'Frozen Tundra',
@@ -574,6 +1145,8 @@ const LANDS = [
     cloudColor: '#788898', cloudShadow: '#485868',
     ambientColor: '#607888', sunColor: '#c0d0e0',
     hasGlowSpots: true,
+    weather: 'snow', weatherIntensity: 0.8,
+    fogBanks: 5, fogOpacity: 0.22,
   },
 ];
 
@@ -600,9 +1173,9 @@ composer.addPass(renderPass);
 // Bloom — makes specular, glow spots, lava, and fireflies pop
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.35,  // strength — subtle, not overwhelming
-  0.6,   // radius — how far bloom spreads
-  0.85,  // threshold — only bright areas bloom
+  0.5,   // strength — warm Ghibli glow
+  0.8,   // radius — soft, wide bloom spread
+  0.72,  // threshold — catches more mid-tones for dreamy feel
 );
 composer.addPass(bloomPass);
 
@@ -643,8 +1216,8 @@ const godRayShader = {
       }
       float falloff = exp(-dist * dist * 3.0);
       vec3 rayColor = uSunColor * illumination * uIntensity * falloff;
-      float haze = smoothstep(0.5, 0.0, dist) * uIntensity * 0.08;
-      vec3 hazeColor = mix(vec3(0.7, 0.8, 1.0), uSunColor, 0.3);
+      float haze = smoothstep(0.6, 0.0, dist) * uIntensity * 0.12;
+      vec3 hazeColor = mix(vec3(0.75, 0.82, 0.95), uSunColor, 0.4);
       gl_FragColor = vec4(texColor.rgb + rayColor + hazeColor * haze, texColor.a);
     }
   `,
@@ -656,13 +1229,13 @@ composer.addPass(godRayPass);
 const colorGradeShader = {
   uniforms: {
     tDiffuse: { value: null },
-    uVignetteStrength: { value: 0.35 },
-    uSaturation: { value: 1.08 },
-    uContrast: { value: 1.05 },
-    uBrightness: { value: 0.0 },
+    uVignetteStrength: { value: 0.3 },
+    uSaturation: { value: 1.12 },
+    uContrast: { value: 1.02 },
+    uBrightness: { value: 0.02 },
     uTime: { value: 0.0 },
-    uTemperature: { value: 0.0 },
-    uGrain: { value: 0.03 },
+    uTemperature: { value: 0.15 },
+    uGrain: { value: 0.02 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -696,9 +1269,12 @@ const colorGradeShader = {
       float b = texture2D(tDiffuse, vUv - caOffset).b;
       vec3 col = vec3(r, g, b);
 
-      // ── TONE CURVE — lift/gamma/gain ──
-      col = pow(col, vec3(1.0 / 1.02));
+      // ── TONE CURVE — Ghibli-soft lift/gamma/gain ──
+      col = pow(col, vec3(1.0 / 1.04));
       col = (col - 0.5) * uContrast + 0.5 + uBrightness;
+      // warm halation — bright areas gently bleed warm
+      float bright = max(col.r, max(col.g, col.b));
+      col += vec3(0.012, 0.008, 0.0) * bright * bright;
 
       // ── COLOR TEMPERATURE — warm/cool shift ──
       float temp = uTemperature * 0.08;
@@ -730,6 +1306,7 @@ composer.addPass(colorGradePass);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.04;
+controls.enablePan = false;
 controls.minDistance = 5;
 controls.maxDistance = 18;
 controls.maxPolarAngle = Math.PI / 2.1;
@@ -746,10 +1323,10 @@ function createToonGradient(steps, softness = 0.35) {
   return tex;
 }
 
-const toonGrad3 = createToonGradient(3, 0.42);
-const toonGrad4 = createToonGradient(4, 0.38);
-const toonGrad5 = createToonGradient(5, 0.34);
-const toonGrad6 = createToonGradient(6, 0.3);
+const toonGrad3 = createToonGradient(4, 0.52);
+const toonGrad4 = createToonGradient(5, 0.48);
+const toonGrad5 = createToonGradient(6, 0.44);
+const toonGrad6 = createToonGradient(8, 0.42);
 
 // reflective material for foliage/vegetation — waxy leaf sheen
 function createFoliageMat(color, opts = {}) {
@@ -771,22 +1348,22 @@ function createTrunkMat(color, opts = {}) {
 }
 
 // ── LIGHTING ────────────────────────────────────
-const ambientLight = new THREE.AmbientLight(0xc8d0e0, 0.45);
+const ambientLight = new THREE.AmbientLight(0xd0d0d8, 0.5);
 scene.add(ambientLight);
 
 const sunLight = new THREE.DirectionalLight(0xfff4e0, 1.5);
 sunLight.position.set(6, 12, 5);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.set(4096, 4096);
+sunLight.shadow.mapSize.set(2048, 2048);
 sunLight.shadow.camera.near = 0.1;
 sunLight.shadow.camera.far = 40;
 sunLight.shadow.camera.left = -12;
 sunLight.shadow.camera.right = 12;
 sunLight.shadow.camera.top = 12;
 sunLight.shadow.camera.bottom = -12;
-sunLight.shadow.bias = -0.0005;
-sunLight.shadow.normalBias = 0.02;
-sunLight.shadow.radius = 3;
+sunLight.shadow.bias = -0.0003;
+sunLight.shadow.normalBias = 0.04;
+sunLight.shadow.radius = 4;
 scene.add(sunLight);
 
 const fillLight = new THREE.DirectionalLight(0xb8c8e8, 0.25);
@@ -794,12 +1371,12 @@ fillLight.position.set(-5, 4, -4);
 scene.add(fillLight);
 
 // rim light for that Ghibli backlit glow — tracks opposite sun
-const rimLight = new THREE.DirectionalLight(0xffecd0, 0.4);
+const rimLight = new THREE.DirectionalLight(0xffecd0, 0.55);
 rimLight.position.set(-3, 8, -6);
 scene.add(rimLight);
 
 // hemisphere light — sky/ground bounce
-const hemiLight = new THREE.HemisphereLight(0x88a8c8, 0x605040, 0.35);
+const hemiLight = new THREE.HemisphereLight(0x90b0c8, 0x786050, 0.4);
 scene.add(hemiLight);
 
 // water bounce light — subtle blue-green from below (caustic bounce)
@@ -817,76 +1394,148 @@ const moonLight = new THREE.DirectionalLight(0x8090c0, 0.0);
 moonLight.position.set(-4, 10, -3);
 scene.add(moonLight);
 
-// ── ANIME SUN (billboard with custom shader) ────
-const sunShaderMat = new THREE.ShaderMaterial({
-  transparent: true,
-  depthWrite: false,
-  side: THREE.DoubleSide,
-  uniforms: {
-    uColor: { value: new THREE.Color(0xfffae0) },
-    uRimColor: { value: new THREE.Color(0xffcc70) },
-    uTime: { value: 0.0 },
-    uOpacity: { value: 0.0 },
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform vec3 uColor;
-    uniform vec3 uRimColor;
-    uniform float uTime;
-    uniform float uOpacity;
-    varying vec2 vUv;
+// ── 3D SUN MODEL (Ghibli-style) ────────────────
+const sunGroup = new THREE.Group();
+let sunOpacity = 0;
 
-    void main() {
-      vec2 center = vUv - 0.5;
-      float dist = length(center);
-      float angle = atan(center.y, center.x);
-
-      // ── CORE DISC — crisp anime circle with soft edge ──
-      float core = 1.0 - smoothstep(0.08, 0.12, dist);
-
-      // ── INNER GLOW — warm gradient ring ──
-      float glow = 1.0 - smoothstep(0.05, 0.28, dist);
-      glow = glow * glow; // soften falloff
-
-      // ── RAY SPIKES — animated radiating beams ──
-      // primary rays (8 spikes, slow rotation)
-      float rays1 = pow(max(0.0, cos(angle * 8.0 + uTime * 0.3)), 12.0);
-      // secondary rays (12 spikes, counter-rotation)
-      float rays2 = pow(max(0.0, cos(angle * 12.0 - uTime * 0.2 + 0.5)), 16.0);
-      // tertiary fine rays (24 spikes, shimmer)
-      float rays3 = pow(max(0.0, cos(angle * 24.0 + uTime * 0.5)), 20.0);
-
-      // rays fade with distance from center
-      float rayMask = smoothstep(0.4, 0.08, dist);
-      float rayGlow = (rays1 * 0.5 + rays2 * 0.25 + rays3 * 0.12) * rayMask;
-
-      // ── OUTER HAZE — very soft atmospheric scatter ──
-      float haze = exp(-dist * dist * 8.0) * 0.3;
-
-      // ── BREATHING — subtle pulse ──
-      float pulse = 1.0 + sin(uTime * 1.5) * 0.04;
-
-      // combine layers
-      float alpha = (core * 0.95 + glow * 0.5 + rayGlow * 0.6 + haze) * pulse * uOpacity;
-
-      // color: bright white core → warm rim color in glow/rays
-      vec3 col = mix(uRimColor, uColor, core * 0.7 + 0.3);
-      // rays tinted warmer
-      col = mix(col, uRimColor, rayGlow * 0.5);
-
-      gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
-    }
-  `,
+// core sphere — warm center with vertex color gradient (white center → golden edge)
+const sunCoreGeo = new THREE.IcosahedronGeometry(0.85, 4);
+{
+  const p = sunCoreGeo.attributes.position;
+  const colors = new Float32Array(p.count * 3);
+  const center = new THREE.Color(0xfff8f0);
+  const edge = new THREE.Color(0xffdd88);
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const len = Math.sqrt(x * x + y * y + z * z);
+    // organic deformation
+    const bump = 1 + Math.sin(x * 6 + y * 4) * 0.05 + Math.cos(z * 5 + x * 3) * 0.04
+      + Math.sin(y * 8 - z * 2) * 0.025;
+    const r = 0.85 * bump;
+    p.setXYZ(i, x / len * r, y / len * r, z / len * r);
+    // gradient: top-center whiter, edges golden
+    const t = 0.3 + Math.abs(y / len) * 0.4 + Math.sin(x * 3 + z * 3) * 0.1;
+    const c = center.clone().lerp(edge, 1 - t);
+    colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+  }
+  sunCoreGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  sunCoreGeo.computeVertexNormals();
+}
+const sunCoreMat = new THREE.MeshBasicMaterial({
+  vertexColors: true, transparent: true, depthWrite: false,
 });
-const sunBillboard = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), sunShaderMat);
-sunBillboard.position.copy(sunLight.position).multiplyScalar(3);
-scene.add(sunBillboard);
+const sunCore = new THREE.Mesh(sunCoreGeo, sunCoreMat);
+sunGroup.add(sunCore);
+
+// soft inner glow layers — multiple nested BackSide spheres for depth
+const sunGlowLayers = [];
+const glowConfigs = [
+  { radius: 1.3, color: 0xfff0c8, opacity: 0.3, detail: 3 },
+  { radius: 1.8, color: 0xffe8a0, opacity: 0.18, detail: 2 },
+  { radius: 2.6, color: 0xffd880, opacity: 0.09, detail: 2 },
+  { radius: 4.0, color: 0xffc860, opacity: 0.04, detail: 1 },
+];
+for (const gc of glowConfigs) {
+  const mat = new THREE.MeshBasicMaterial({
+    color: gc.color, transparent: true, opacity: gc.opacity,
+    depthWrite: false, side: THREE.BackSide,
+  });
+  const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(gc.radius, gc.detail), mat);
+  mesh.userData.baseOpacity = gc.opacity;
+  sunGlowLayers.push(mesh);
+  sunGroup.add(mesh);
+}
+
+// tapered ray spikes with vertex color fade (bright base → transparent tip)
+const sunRays = [];
+
+function createTaperedRay(length, baseWidth, tipWidth, segments) {
+  // custom geometry: tapered quad strip that fades from bright to transparent
+  const geo = new THREE.BufferGeometry();
+  const verts = [];
+  const cols = [];
+  const indices = [];
+  const baseColor = new THREE.Color(0xfff4d0);
+  const tipColor = new THREE.Color(0xffcc70);
+
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const w = baseWidth * (1 - t * 0.85) + tipWidth * t; // taper
+    const y = t * length;
+    const alpha = (1 - t) * (1 - t); // quadratic fade
+    // two vertices per row (left and right)
+    verts.push(-w / 2, y, 0, w / 2, y, 0);
+    const c = baseColor.clone().lerp(tipColor, t);
+    cols.push(c.r, c.g, c.b, alpha, c.r, c.g, c.b, alpha);
+  }
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+    indices.push(a, b, c, b, d, c);
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(cols, 4));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+const rayMat = new THREE.MeshBasicMaterial({
+  vertexColors: true, transparent: true, depthWrite: false,
+  side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+});
+
+// ray tier configs — animation params stored directly in userData to avoid per-frame string dispatch
+const RAY_TIERS = [
+  { count: 8,  offset: 0,    baseLen: 3.0, lenVar: 0.8, sinK: 2.7, sinP: 1.3, baseW: 0.35, tipW: 0.02, segs: 6, rotSpeed: 0.05,   pulseFreq: 2.0, pulseAmp: 0.1, baseAlpha: 0.6 },
+  { count: 12, offset: 0.26, baseLen: 1.6, lenVar: 0.5, sinK: 3.1, sinP: 0.7, baseW: 0.18, tipW: 0.01, segs: 5, rotSpeed: -0.035, pulseFreq: 2.8, pulseAmp: 0.08, baseAlpha: 0.4 },
+  { count: 24, offset: 0.13, baseLen: 0.8, lenVar: 0.3, sinK: 4.3, sinP: 0,   baseW: 0.06, tipW: 0.005, segs: 3, rotSpeed: 0.12,  pulseFreq: 5.0, pulseAmp: 0.5, baseAlpha: 0.25 },
+];
+for (const tier of RAY_TIERS) {
+  for (let i = 0; i < tier.count; i++) {
+    const angle = (i / tier.count) * Math.PI * 2 + tier.offset;
+    const len = tier.baseLen + Math.sin(i * tier.sinK + tier.sinP) * tier.lenVar;
+    const geo = createTaperedRay(len, tier.baseW, tier.tipW, tier.segs);
+    const ray = new THREE.Mesh(geo, rayMat.clone());
+    ray.rotation.z = -Math.PI / 2;
+    const pivot = new THREE.Group();
+    pivot.add(ray);
+    pivot.rotation.z = angle;
+    pivot.userData.baseAngle = angle;
+    pivot.userData.rotSpeed = tier.rotSpeed;
+    pivot.userData.pulseFreq = tier.pulseFreq;
+    pivot.userData.pulseAmp = tier.pulseAmp;
+    pivot.userData.baseAlpha = tier.baseAlpha;
+    pivot.userData.isTertiary = tier.count === 24;
+    sunRays.push(pivot);
+    sunGroup.add(pivot);
+  }
+}
+
+// sparkle particles — tiny bright points orbiting near the sun
+const sparkleGroup = new THREE.Group();
+const sparkleMat = new THREE.MeshBasicMaterial({
+  color: 0xfff8e8, transparent: true, opacity: 0.7,
+  depthWrite: false, blending: THREE.AdditiveBlending,
+});
+for (let i = 0; i < 16; i++) {
+  const sparkle = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(0.04 + Math.random() * 0.04, 0),
+    sparkleMat.clone(),
+  );
+  const a = Math.random() * Math.PI * 2;
+  const r = 1.2 + Math.random() * 1.8;
+  sparkle.position.set(Math.cos(a) * r, Math.sin(a) * r, (Math.random() - 0.5) * 0.5);
+  sparkle.userData.orbitAngle = a;
+  sparkle.userData.orbitRadius = r;
+  sparkle.userData.orbitSpeed = 0.15 + Math.random() * 0.25;
+  sparkle.userData.twinklePhase = Math.random() * Math.PI * 2;
+  sparkleGroup.add(sparkle);
+}
+sunGroup.add(sparkleGroup);
+
+sunGroup.position.copy(sunLight.position).multiplyScalar(3);
+sunGroup.scale.setScalar(1.8);
+scene.add(sunGroup);
 
 // ── NOISE ───────────────────────────────────────
 let seed = 42;
@@ -939,13 +1588,13 @@ function ridgeFbm(x, z, octaves = 4) {
 // ── WIND SYSTEM ────────────────────────────────
 const wind = {
   baseDir: new THREE.Vector2(0.7, 0.5).normalize(),
-  baseStrength: 0.6,
-  gustFreq: 0.25,       // gust oscillation frequency
-  gustStrength: 0.4,    // additional gust amplitude
-  turbulence: 0.15,     // high-freq noise layered on top
+  baseStrength: 0.5,
+  gustFreq: 0.15,       // gust oscillation frequency
+  gustStrength: 0.25,   // additional gust amplitude
+  turbulence: 0.08,     // high-freq noise layered on top
   // computed per-frame:
   dir: new THREE.Vector2(0.7, 0.5).normalize(),
-  strength: 0.6,
+  strength: 0.5,
   gust: 0,
 };
 
@@ -1040,8 +1689,17 @@ function getTerrainHeight(x, z, land) {
 
 // ── ISLAND CREATION ─────────────────────────────
 let islandGroup = new THREE.Group();
+let cachedWaterMesh = null;
 let cloudGroup = new THREE.Group();
 let particleGroup = new THREE.Group();
+// cached arrays for per-frame animation — avoids islandGroup.traverse() every frame
+let _cachedFlowers = [];
+let _cachedGrass = [];
+let _cachedTrees = [];
+let _cachedBushes = [];
+let _cachedGlow = [];
+let _cachedLeaves = [];
+let _cachedLava = [];
 scene.add(islandGroup);
 scene.add(cloudGroup);
 scene.add(particleGroup);
@@ -1129,7 +1787,10 @@ function createIsland(land) {
   }
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-  const terrainMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad6 });
+  const terrainMat = new THREE.MeshToonMaterial({
+    vertexColors: true, gradientMap: toonGrad6,
+    polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+  });
   const terrain = new THREE.Mesh(geometry, terrainMat);
   terrain.castShadow = true;
   terrain.receiveShadow = true;
@@ -1140,10 +1801,10 @@ function createIsland(land) {
   const outlineGeo = geometry.clone();
   const oPos = outlineGeo.attributes.position;
   for (let i = 0; i < oPos.count; i++) {
-    oPos.setY(i, oPos.getY(i) - 0.03);
+    oPos.setY(i, oPos.getY(i) - 0.06);
   }
   const outline = new THREE.Mesh(outlineGeo, outlineMat);
-  outline.scale.set(1.012, 1, 1.012);
+  outline.scale.set(1.018, 1, 1.018);
   group.add(outline);
 
   // ── CLIFF BASE (dramatic layered) ────────
@@ -1193,8 +1854,8 @@ function createIsland(land) {
   group.add(base);
 
   const baseOutline = new THREE.Mesh(baseGeo.clone(), outlineMat.clone());
-  baseOutline.position.y = -1.55;
-  baseOutline.scale.multiplyScalar(1.012);
+  baseOutline.position.y = -1.57;
+  baseOutline.scale.multiplyScalar(1.016);
   group.add(baseOutline);
 
   // ── CLIFF VEGETATION (roots, moss patches) ──
@@ -1228,7 +1889,7 @@ function createIsland(land) {
 
   // ── WATER (Sea of Thieves style — dramatic Gerstner + Jacobian foam) ──
   const waterR = RADIUS * 2.2;
-  const WATER_SEG = 160;
+  const WATER_SEG = 128;
   const waterGeo = new THREE.PlaneGeometry(waterR * 2, waterR * 2, WATER_SEG, WATER_SEG);
   waterGeo.rotateX(-Math.PI / 2);
   const wPos = waterGeo.attributes.position;
@@ -1259,26 +1920,20 @@ function createIsland(land) {
   const analyticalNormals = new Float32Array(wPos.count * 3);
   waterGeo.setAttribute('aAnalyticalNormal', new THREE.BufferAttribute(analyticalNormals, 3));
 
-  // Gerstner wave parameters — 12 overlapping sets for SoT-style ocean
+  // Gerstner wave parameters — gentle rolling waves for Ghibli aesthetic
   const gerstnerWaves = [
-    // large primary swell — big rolling waves
-    { dir: [0.7, 0.5],   amp: 0.08, freq: 0.5, speed: 0.55, steep: 0.75 },
-    { dir: [0.55, 0.7],  amp: 0.06, freq: 0.7, speed: 0.7,  steep: 0.70 },
+    // large primary swell — slow, gentle rollers
+    { dir: [0.7, 0.5],   amp: 0.055, freq: 0.4, speed: 0.35, steep: 0.55 },
+    { dir: [0.55, 0.7],  amp: 0.04,  freq: 0.55, speed: 0.45, steep: 0.50 },
     // medium secondary swell
-    { dir: [-0.25, 0.9], amp: 0.04, freq: 1.1, speed: 1.0,  steep: 0.60 },
-    { dir: [0.9, -0.15], amp: 0.03, freq: 1.4, speed: 1.2,  steep: 0.55 },
-    // cross-seas
-    { dir: [-0.55, 0.65],amp: 0.022,freq: 1.9, speed: 1.5,  steep: 0.50 },
-    { dir: [0.45, -0.75],amp: 0.018,freq: 2.3, speed: 1.8,  steep: 0.48 },
-    // wind chop
-    { dir: [-0.7, 0.5],  amp: 0.012,freq: 3.2, speed: 2.4,  steep: 0.42 },
-    { dir: [0.3, -0.85], amp: 0.010,freq: 3.8, speed: 2.8,  steep: 0.38 },
-    // ripple detail
-    { dir: [-0.8, -0.35],amp: 0.006,freq: 5.0, speed: 3.5,  steep: 0.32 },
-    { dir: [0.15, 0.95], amp: 0.005,freq: 6.5, speed: 4.2,  steep: 0.28 },
-    // micro-detail
-    { dir: [0.6, -0.6],  amp: 0.003,freq: 8.5, speed: 5.5,  steep: 0.22 },
-    { dir: [-0.5, -0.7], amp: 0.002,freq: 11.0,speed: 7.0,  steep: 0.18 },
+    { dir: [-0.25, 0.9], amp: 0.028, freq: 0.85, speed: 0.6,  steep: 0.45 },
+    { dir: [0.9, -0.15], amp: 0.02,  freq: 1.1,  speed: 0.75, steep: 0.40 },
+    // cross-seas — subtle texture
+    { dir: [-0.55, 0.65],amp: 0.015, freq: 1.5, speed: 0.9,  steep: 0.38 },
+    { dir: [0.45, -0.75],amp: 0.012, freq: 1.8, speed: 1.1,  steep: 0.35 },
+    // gentle ripple detail
+    { dir: [-0.7, 0.5],  amp: 0.008, freq: 2.5, speed: 1.4,  steep: 0.30 },
+    { dir: [0.3, -0.85], amp: 0.006, freq: 3.0, speed: 1.6,  steep: 0.28 },
   ];
 
   // water shader — SoT-style: dramatic fresnel, Jacobian foam, SSS, god-ray specular
@@ -1366,14 +2021,21 @@ function createIsland(land) {
         return v;
       }
 
+      // sparkle hash — high-frequency glitter
+      float sparkleHash(vec2 p) {
+        vec3 p3 = fract(vec3(p.xyx) * vec3(443.897, 441.423, 437.195));
+        p3 += dot(p3, p3.yzx + 19.19);
+        return fract((p3.x + p3.y) * p3.z);
+      }
+
       void main() {
         vec3 viewDir = normalize(cameraPosition - vWorldPos);
         vec3 norm = normalize(vNormal);
 
         // ── DUAL-FLOW NORMALS — two layers flowing in different directions ──
         float bump = 0.0006;
-        vec2 flow1 = uWindDir * uTime * 0.4 + vec2(uTime * 0.15, 0.0);
-        vec2 flow2 = -uWindDir * uTime * 0.25 + vec2(0.0, uTime * 0.12);
+        vec2 flow1 = uWindDir * uTime * 0.2 + vec2(uTime * 0.08, 0.0);
+        vec2 flow2 = -uWindDir * uTime * 0.12 + vec2(0.0, uTime * 0.06);
         // layer 1: medium detail
         float n1a = vnoise(vWorldPos.xz * 8.0 + flow1);
         float n1b = vnoise(vWorldPos.xz * 8.0 + flow1 + vec2(bump, 0.0));
@@ -1396,7 +2058,7 @@ function createIsland(land) {
           vec3 nearCol = uFoamColor * 0.8 + vec3(0.06, 0.08, 0.06);
           waterCol = mix(nearCol, uShallow, t);
           // add subtle caustic tint near shore
-          float shoreCaustic = vnoise(vWorldPos.xz * 6.0 + uTime * vec2(0.3, -0.2));
+          float shoreCaustic = vnoise(vWorldPos.xz * 6.0 + uTime * vec2(0.15, -0.1));
           waterCol += uShallow * shoreCaustic * (1.0 - t) * 0.12;
         } else if (depthT < 0.15) {
           waterCol = mix(uShallow, mix(uShallow, uMid, 0.5), depthT / 0.15);
@@ -1455,14 +2117,14 @@ function createIsland(land) {
         // Jacobian < 1 means wave is steepening/breaking
         float jacobianFoam = smoothstep(0.55, -0.35, vJacobian);
         // foam texture — multi-octave noise for realistic breakup
-        vec2 foamUV = vWorldPos.xz * 3.0 + uWindDir * uTime * 0.3;
+        vec2 foamUV = vWorldPos.xz * 3.0 + uWindDir * uTime * 0.15;
         float foamTex = fbmFoam(foamUV);
         float foamTex2 = fbmFoam(foamUV * 2.3 + vec2(5.7, 3.2));
         float foamTex3 = fbmFoam(foamUV * 4.5 + vec2(11.3, -7.1)); // fine detail layer
         // combine: Jacobian drives where, multi-scale noise drives shape
         foam = jacobianFoam * (foamTex * 0.45 + foamTex2 * 0.35 + foamTex3 * 0.2);
         // dissolving foam edges — noise-driven breakup at boundaries
-        float dissolveMask = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.2, -0.15));
+        float dissolveMask = vnoise(vWorldPos.xz * 12.0 + uTime * vec2(0.1, -0.07));
         foam *= smoothstep(0.2, 0.55, dissolveMask + foam * 0.5);
         // foam also on high wave crests — sharper threshold
         float crestBoost = smoothstep(0.025, 0.07, vWaveHeight);
@@ -1470,8 +2132,8 @@ function createIsland(land) {
         // wind-driven foam streaks on open water
         float windDot = dot(normalize(vWorldPos.xz + vec2(0.001)), uWindDir);
         float streak = smoothstep(0.45, 0.88, windDot) * uWindStrength;
-        float streakTex = vnoise(vWorldPos.xz * vec2(2.0, 8.0) + uWindDir * uTime * 0.5);
-        float streakFine = vnoise(vWorldPos.xz * vec2(4.0, 16.0) + uWindDir * uTime * 0.7);
+        float streakTex = vnoise(vWorldPos.xz * vec2(2.0, 8.0) + uWindDir * uTime * 0.25);
+        float streakFine = vnoise(vWorldPos.xz * vec2(4.0, 16.0) + uWindDir * uTime * 0.35);
         foam += streak * (streakTex * 0.7 + streakFine * 0.3) * 0.18;
         // foam color: bright white with biome tint + slight iridescence on edges
         vec3 foamCol = mix(uFoamColor, vec3(1.0), 0.6);
@@ -1482,9 +2144,9 @@ function createIsland(land) {
         // ── SHORE SPLASH — waves crashing against island cliffs ──
         float shoreT = 1.0 - smoothstep(0.82, 1.15, vIslandDist);
         // multiple crash waves at different speeds — they pile up
-        float crashPhase1 = uTime * 0.6;
-        float crashPhase2 = uTime * 0.45;
-        float crashPhase3 = uTime * 0.8;
+        float crashPhase1 = uTime * 0.35;
+        float crashPhase2 = uTime * 0.25;
+        float crashPhase3 = uTime * 0.45;
         // primary crash — big rolling wave
         float crash1 = sin(vIslandDist * 18.0 - crashPhase1) * 0.5 + 0.5;
         crash1 = pow(crash1, 1.5); // sharpen the crest
@@ -1497,8 +2159,8 @@ function createIsland(land) {
         crash3 *= max(0.3, 0.5 + windAngle * 0.5); // stronger on windward side
 
         // foam texture breakup
-        float shFoamTex = fbmFoam(vWorldPos.xz * 5.0 + uWindDir * uTime * 0.2);
-        float shFoamFine = vnoise(vWorldPos.xz * 20.0 + uTime * vec2(0.4, -0.2));
+        float shFoamTex = fbmFoam(vWorldPos.xz * 5.0 + uWindDir * uTime * 0.1);
+        float shFoamFine = vnoise(vWorldPos.xz * 20.0 + uTime * vec2(0.2, -0.1));
 
         // combine crashes with foam texture
         float shoreFoam = shoreT * (crash1 * 0.5 + crash2 * 0.3 + crash3 * 0.2);
@@ -1520,7 +2182,7 @@ function createIsland(land) {
         float churnZone = 1.0 - smoothstep(0.82, 0.88, vIslandDist);
         float churn = churnZone * (0.5 + shFoamFine * 0.5);
         // churn bubbles
-        float bubbles = vnoise(vWorldPos.xz * 35.0 + uTime * vec2(0.8, 0.6));
+        float bubbles = vnoise(vWorldPos.xz * 35.0 + uTime * vec2(0.4, 0.3));
         churn += churnZone * step(0.6, bubbles) * 0.4;
         shoreFoam = max(shoreFoam, churn);
 
@@ -1566,6 +2228,70 @@ function createIsland(land) {
         float waveRim = pow(rimDot, 4.0) * smoothstep(0.0, 0.04, vWaveHeight);
         waterCol += uSunColor * waveRim * 0.12;
 
+        // ── SUN SPARKLES — diamond glints dancing on the surface ──
+        {
+          vec2 sparkleUV = vWorldPos.xz * 45.0 + flow1 * 3.0;
+          float sparkle1 = sparkleHash(floor(sparkleUV));
+          float sparkle2 = sparkleHash(floor(sparkleUV + vec2(0.5)));
+          // only the brightest cells sparkle — threshold for rarity
+          float sparkleVal = max(
+            step(0.985, sparkle1) * pow(sparkle1, 80.0),
+            step(0.982, sparkle2) * pow(sparkle2, 60.0)
+          );
+          // sparkles visible when sun hits the surface + viewing angle catches reflection
+          float sparkleView = pow(max(dot(norm, normalize(uSunDir + viewDir)), 0.0), 120.0);
+          float sparkleFlicker = 0.5 + 0.5 * sin(uTime * 12.0 + sparkle1 * 50.0);
+          // mask: no sparkles in deep water or heavy foam
+          float sparkleMask = (1.0 - smoothstep(0.6, 1.0, vDepth)) * (1.0 - clamp(foam + shoreFoam, 0.0, 1.0));
+          waterCol += uSunColor * sparkleVal * sparkleView * sparkleFlicker * sparkleMask * 2.5;
+        }
+
+        // ── PRISMATIC IRIDESCENCE — rainbow shimmer on foam edges ──
+        {
+          float foamEdgeZone = smoothstep(0.05, 0.2, totalFoam) * (1.0 - smoothstep(0.25, 0.5, totalFoam));
+          // thin-film interference — phase shift based on view angle and position
+          float iriPhase = dot(viewDir, norm) * 12.0 + vWorldPos.x * 3.0 + vWorldPos.z * 2.5 + uTime * 0.3;
+          vec3 iriColor = vec3(
+            0.5 + 0.5 * sin(iriPhase),
+            0.5 + 0.5 * sin(iriPhase + 2.094),  // 2π/3 offset
+            0.5 + 0.5 * sin(iriPhase + 4.189)   // 4π/3 offset
+          );
+          // subtle and soft — not garish
+          waterCol += iriColor * foamEdgeZone * 0.08 * uSunColor;
+        }
+
+        // ── SKY GRADIENT REFLECTION — reflect sky color based on reflection angle ──
+        {
+          vec3 reflDir = reflect(-viewDir, norm);
+          float skyT = reflDir.y * 0.5 + 0.5; // 0 = horizon, 1 = zenith
+          // approximate sky gradient from sun color (warm low, cool high)
+          vec3 skyLow = mix(uSunColor * 0.4, vec3(0.7, 0.5, 0.3), 0.3);
+          vec3 skyHigh = mix(uMid * 0.6, vec3(0.3, 0.45, 0.7), 0.4);
+          vec3 skyGrad = mix(skyLow, skyHigh, smoothstep(0.0, 0.7, skyT));
+          // blend into water via fresnel (replace the flat skyReflect from earlier)
+          waterCol += skyGrad * fresnel * 0.12;
+        }
+
+        // ── GHIBLI COLOR BANDING — soft height-based tint shifts ──
+        {
+          float bandT = vWaveHeight * 12.0; // scale wave height to visible range
+          // warm tint on crests, cool tint in troughs
+          vec3 crestTint = mix(uShallow, uSunColor * 0.5, 0.3);
+          vec3 troughTint = uDeep * 0.8;
+          float crestBand = smoothstep(0.3, 0.8, sin(bandT * 2.0) * 0.5 + 0.5);
+          waterCol = mix(waterCol, mix(troughTint, crestTint, crestBand), 0.06);
+        }
+
+        // ── EDGE GLOW — soft luminous rim at the water boundary ──
+        {
+          float edgeDist = smoothstep(0.85, 1.0, vDepth); // near outer edge
+          float edgePulse = 0.7 + 0.3 * sin(uTime * 0.8 + vWorldPos.x * 2.0 + vWorldPos.z * 1.5);
+          vec3 edgeCol = mix(uShallow, uFoamColor, 0.5) * 1.3;
+          waterCol = mix(waterCol, edgeCol, edgeDist * edgePulse * 0.25);
+          // soft alpha fade at boundary instead of hard cutoff
+          alpha = mix(alpha, 0.0, smoothstep(0.92, 1.0, vDepth));
+        }
+
         // ── MOUSE RIPPLES ──
         for (int i = 0; i < 5; i++) {
           vec4 rip = uRipples[i];
@@ -1590,6 +2316,7 @@ function createIsland(land) {
   water.position.y = 0.02;
   water.receiveShadow = true;
   water.userData.isWaveWater = true;
+  cachedWaterMesh = water;
   water.userData.origX = waterOrigX;
   water.userData.origY = waterOrigY;
   water.userData.origZ = waterOrigZ;
@@ -1811,7 +2538,7 @@ function createIsland(land) {
       const glowColor = seededRandom() > 0.5 ? land.colors.flowers : land.colors.flowers2;
       const glowMat = new THREE.MeshBasicMaterial({
         color: new THREE.Color(glowColor),
-        transparent: true, opacity: 0.75,
+        transparent: true, opacity: 0.75, depthWrite: false,
       });
       const glow = new THREE.Mesh(glowGeo, glowMat);
       glow.position.set(gx, gh + 0.025, gz);
@@ -1867,7 +2594,7 @@ function createIsland(land) {
       lavaGeo.rotateY(seededRandom() * Math.PI);
       const lavaMat = new THREE.MeshBasicMaterial({
         color: new THREE.Color(seededRandom() > 0.4 ? '#e84818' : '#f88020'),
-        transparent: true, opacity: 0.65,
+        transparent: true, opacity: 0.65, depthWrite: false,
       });
       const lava = new THREE.Mesh(lavaGeo, lavaMat);
       lava.position.set(lx, lh + 0.01, lz);
@@ -2383,7 +3110,7 @@ function createParticles(land) {
       : land.colors.flowers;
     const wingMat = new THREE.MeshBasicMaterial({
       color: new THREE.Color(wingColor),
-      transparent: true, opacity: 0.8,
+      transparent: true, opacity: 0.8, depthWrite: false,
       side: THREE.DoubleSide,
     });
     const wing1 = new THREE.Mesh(wingGeo, wingMat);
@@ -2445,8 +3172,15 @@ function switchToLand(index) {
       scene.add(islandGroup);
       scene.add(cloudGroup);
       scene.add(particleGroup);
+      _rebuildAnimCaches();
       currentLandIndex = targetIndex;
+      achState.biomesVisited.add(targetIndex);
+      achState.biomeTime = 0;
+      if (achState.biomesVisited.size >= 3) unlockAchievement('world_hopper');
+      if (achState.biomesVisited.size >= LANDS.length) unlockAchievement('realm_walker');
       updateSceneColors(LANDS[targetIndex]);
+      initWeather(LANDS[targetIndex]);
+      createFogBanks(LANDS[targetIndex]);
       transitionProgress = 0;
       animateIn();
     }
@@ -2463,6 +3197,7 @@ function switchToLand(index) {
       islandGroup.position.y = 0;
       islandGroup.scale.setScalar(1);
       transitioning = false;
+      playBiomeChime();
     }
   }
 
@@ -2527,22 +3262,32 @@ skyCanvas.width = 1;
 skyCanvas.height = 512;
 const skyCtx = skyCanvas.getContext('2d');
 let skyTexture = null;
+let _skyThrottle = 0;
+// pre-allocated colors to avoid GC churn in updateDayNight (called every frame)
+const _colBounce = new THREE.Color(0x68a8c0);
+const _colNightFill = new THREE.Color(0x4060a0);
+const _colGoldenFill = new THREE.Color(0xe8c898);
+const _colGoldenCanopy = new THREE.Color(0xf0a060);
 
 function updateDayNight(tod) {
-  // sky gradient
-  const grad = skyCtx.createLinearGradient(0, 0, 0, 512);
-  grad.addColorStop(0, '#' + tod.skyTop.getHexString());
-  grad.addColorStop(0.5, '#' + tod.skyMid.getHexString());
-  grad.addColorStop(1, '#' + tod.skyBot.getHexString());
-  skyCtx.fillStyle = grad;
-  skyCtx.fillRect(0, 0, 1, 512);
-  if (!skyTexture) {
-    skyTexture = new THREE.CanvasTexture(skyCanvas);
-    skyTexture.mapping = THREE.EquirectangularReflectionMapping;
-  } else {
-    skyTexture.needsUpdate = true;
+  // sky gradient — throttled to ~10x/sec (canvas draw is expensive)
+  _skyThrottle++;
+  if (_skyThrottle >= 6) {
+    _skyThrottle = 0;
+    const grad = skyCtx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, '#' + tod.skyTop.getHexString());
+    grad.addColorStop(0.5, '#' + tod.skyMid.getHexString());
+    grad.addColorStop(1, '#' + tod.skyBot.getHexString());
+    skyCtx.fillStyle = grad;
+    skyCtx.fillRect(0, 0, 1, 512);
+    if (!skyTexture) {
+      skyTexture = new THREE.CanvasTexture(skyCanvas);
+      skyTexture.mapping = THREE.EquirectangularReflectionMapping;
+    } else {
+      skyTexture.needsUpdate = true;
+    }
+    scene.background = skyTexture;
   }
-  scene.background = skyTexture;
 
   // fog
   if (!scene.fog) scene.fog = new THREE.FogExp2(tod.fog, 0.015);
@@ -2562,7 +3307,7 @@ function updateDayNight(tod) {
   hemiLight.groundColor.copy(tod.fog).multiplyScalar(0.6);
 
   // bounce light color from water
-  bounceLight.color.copy(tod.skyBot).lerp(new THREE.Color(0x68a8c0), 0.3);
+  bounceLight.color.copy(tod.skyBot).lerp(_colBounce, 0.3);
   bounceLight.intensity = tod.sunInt * 0.15;
 
   // sun position arcs across sky
@@ -2579,19 +3324,19 @@ function updateDayNight(tod) {
       1 - Math.abs(t - 0.18) / 0.06,  // dawn golden
     )
   );
-  rimLight.intensity = tod.rimInt + goldenFactor * 0.4;
+  rimLight.intensity = tod.rimInt + goldenFactor * 0.6;
 
   // ── FILL LIGHT shifts color with TOD ──
   // cool blue at night, warm at golden hour, neutral at day
   const nightFade = t > 0.72 ? Math.min(1, (t - 0.72) / 0.08) : (t < 0.14 ? Math.min(1, (0.14 - t) / 0.08) : 0);
-  fillLight.color.set(0xb8c8e8).lerp(new THREE.Color(0x4060a0), nightFade);
-  fillLight.color.lerp(new THREE.Color(0xe8c898), goldenFactor * 0.6);
+  fillLight.color.set(0xb8c8e8).lerp(_colNightFill, nightFade);
+  fillLight.color.lerp(_colGoldenFill, goldenFactor * 0.6);
 
   // ── CANOPY GLOW — warm bounce light in the trees ──
   // strongest at golden hour, subtle during day, off at night
   const dayAmount = Math.max(0, Math.sin(sunAngle));
   canopyLight.intensity = dayAmount * (0.25 + goldenFactor * 0.5);
-  canopyLight.color.set(0xd8c898).lerp(new THREE.Color(0xf0a060), goldenFactor);
+  canopyLight.color.set(0xd8c898).lerp(_colGoldenCanopy, goldenFactor);
 
   // ── MOONLIGHT — cool blue directional at night ──
   moonLight.intensity = nightFade * 0.35;
@@ -2600,24 +3345,19 @@ function updateDayNight(tod) {
   // ── AMBIENT drops for dramatic shadows at golden hour ──
   ambientLight.intensity = tod.ambInt * (1.0 - goldenFactor * 0.3);
 
-  // ── POST-PROCESSING — smooth curves instead of hard switches ──
-  // golden hour: smooth bell curve centered at t=0.6 (sunset) and t=0.18 (dawn)
-  // night: smooth ramp
-  const bloomGolden = goldenFactor * 0.55;
-  const bloomNight = nightFade * 0.45;
-  const bloomDay = (1.0 - goldenFactor) * (1.0 - nightFade) * 0.3;
-  bloomPass.strength = Math.max(bloomDay, Math.max(bloomGolden, bloomNight));
-  bloomPass.threshold = 0.85 - nightFade * 0.15;
-
-  // vignette: smooth ramp, stronger at night and golden
-  colorGradePass.uniforms.uVignetteStrength.value = 0.25 + nightFade * 0.25 + goldenFactor * 0.1;
-  // saturation: slightly desaturate at night, boost at golden
-  colorGradePass.uniforms.uSaturation.value = 1.08 - nightFade * 0.18 + goldenFactor * 0.08;
+  // ── POST-PROCESSING — photo mode overrides, otherwise dynamic per TOD ──
+  if (!photoMode) {
+    const bloomGolden = goldenFactor * 0.75;
+    const bloomNight = nightFade * 0.5;
+    const bloomDay = (1.0 - goldenFactor) * (1.0 - nightFade) * 0.45;
+    bloomPass.strength = Math.max(bloomDay, Math.max(bloomGolden, bloomNight));
+    bloomPass.threshold = 0.72 - nightFade * 0.1 - goldenFactor * 0.08;
+    colorGradePass.uniforms.uVignetteStrength.value = 0.2 + nightFade * 0.2 + goldenFactor * 0.15;
+    colorGradePass.uniforms.uSaturation.value = 1.12 - nightFade * 0.15 + goldenFactor * 0.1;
+    colorGradePass.uniforms.uTemperature.value = 0.15 + goldenFactor * 0.9 - nightFade * 0.25;
+  }
   colorGradePass.uniforms.uTime.value = performance.now() * 0.001;
-  // temperature: warm at golden, cool at night, neutral at day
-  colorGradePass.uniforms.uTemperature.value = goldenFactor * 0.7 - nightFade * 0.35 + 0.05;
-  // exposure: smooth curve
-  renderer.toneMappingExposure = 1.0 + goldenFactor * 0.2 - nightFade * 0.2;
+  renderer.toneMappingExposure = 1.05 + goldenFactor * 0.3 - nightFade * 0.15;
 }
 
 // ── STARS ────────────────────────────────────────
@@ -2636,7 +3376,7 @@ scene.add(starGroup);
     starPositions[i * 3 + 2] = Math.sin(theta) * Math.sin(phi) * r;
   }
   starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-  const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0 });
+  const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.15, transparent: true, opacity: 0, depthWrite: false });
   const stars = new THREE.Points(starGeo, starMat);
   stars.userData.isStars = true;
   starGroup.add(stars);
@@ -2648,7 +3388,7 @@ scene.add(fireflyGroup);
 {
   for (let i = 0; i < 25; i++) {
     const ffGeo = new THREE.SphereGeometry(0.015, 4, 3);
-    const ffMat = new THREE.MeshBasicMaterial({ color: 0xeeff88, transparent: true, opacity: 0 });
+    const ffMat = new THREE.MeshBasicMaterial({ color: 0xeeff88, transparent: true, opacity: 0, depthWrite: false });
     const ff = new THREE.Mesh(ffGeo, ffMat);
     ff.position.set(
       (Math.random() - 0.5) * RADIUS * 2,
@@ -2672,15 +3412,13 @@ function updateSceneColors(land) {
   updateDayNight(tod);
 
   // update water shader colors for new biome
-  islandGroup.traverse(child => {
-    if (child.userData.isWaveWater && child.userData.uniforms) {
-      const u = child.userData.uniforms;
-      u.uShallow.value.set(land.colors.waterShallow);
-      u.uMid.value.set(land.colors.water);
-      u.uDeep.value.set(land.colors.waterDeep);
-      u.uFoamColor.value.set(land.colors.waterFoam);
-    }
-  });
+  if (cachedWaterMesh && cachedWaterMesh.userData.uniforms) {
+    const u = cachedWaterMesh.userData.uniforms;
+    u.uShallow.value.set(land.colors.waterShallow);
+    u.uMid.value.set(land.colors.water);
+    u.uDeep.value.set(land.colors.waterDeep);
+    u.uFoamColor.value.set(land.colors.waterFoam);
+  }
 }
 
 // ── UI ──────────────────────────────────────────
@@ -2714,14 +3452,1598 @@ LANDS.forEach((land, i) => {
   uiContainer.appendChild(btn);
 });
 
+// ── FOG BANKS (ground-level drifting fog) ─────────
+const MAX_FOG_BANKS = 8;
+let fogBankGroup = new THREE.Group();
+scene.add(fogBankGroup);
+
+function createFogBanks(land) {
+  // clear old fog banks
+  while (fogBankGroup.children.length) {
+    const child = fogBankGroup.children[0];
+    fogBankGroup.remove(child);
+    child.traverse(c => { if (c.geometry) c.geometry.dispose(); if (c.material) c.material.dispose(); });
+  }
+
+  const count = land.fogBanks || 0;
+  if (count === 0) return;
+
+  const fogColor = new THREE.Color(land.fog);
+  seed = 1100;
+
+  for (let i = 0; i < count; i++) {
+    const bankGroup = new THREE.Group();
+    const bx = (seededRandom() - 0.5) * RADIUS * 3.5;
+    const bz = (seededRandom() - 0.5) * RADIUS * 3.5;
+    const by = 0.2 + seededRandom() * 0.8; // ground-hugging
+    const bankScale = 1.5 + seededRandom() * 2.5;
+
+    // 3-5 flattened puffs per fog bank
+    const puffCount = 3 + Math.floor(seededRandom() * 3);
+    for (let j = 0; j < puffCount; j++) {
+      const pr = (0.6 + seededRandom() * 0.8) * bankScale;
+      const geo = new THREE.IcosahedronGeometry(pr, 2);
+      const pos = geo.attributes.position;
+
+      for (let k = 0; k < pos.count; k++) {
+        let y = pos.getY(k);
+        // flatten heavily — fog is wide and thin
+        if (y < 0) y *= 0.15;
+        else y *= 0.3;
+        pos.setY(k, y);
+        // organic deformation
+        const n = noise2D(pos.getX(k) * 2 + j * 5, pos.getZ(k) * 2 + i * 3) * 0.15;
+        pos.setX(k, pos.getX(k) * (1 + n));
+        pos.setZ(k, pos.getZ(k) * (1 + n));
+      }
+      geo.computeVertexNormals();
+
+      const mat = new THREE.MeshBasicMaterial({
+        color: fogColor,
+        transparent: true,
+        opacity: land.fogOpacity || 0.15,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+
+      const puff = new THREE.Mesh(geo, mat);
+      puff.position.set(
+        (j - puffCount / 2) * pr * 0.6,
+        (seededRandom() - 0.5) * 0.2,
+        (seededRandom() - 0.5) * pr * 0.4,
+      );
+      bankGroup.add(puff);
+    }
+
+    bankGroup.position.set(bx, by, bz);
+    bankGroup.userData.speed = 0.08 + seededRandom() * 0.15;
+    bankGroup.userData.baseX = bx;
+    bankGroup.userData.baseY = by;
+    bankGroup.userData.baseZ = bz;
+    bankGroup.userData.driftPhase = seededRandom() * Math.PI * 2;
+    bankGroup.userData.baseOpacity = land.fogOpacity || 0.15;
+    bankGroup.userData.isFogBank = true;
+    fogBankGroup.add(bankGroup);
+  }
+}
+
+function updateFogBanks(elapsed, dt) {
+  fogBankGroup.children.forEach(bank => {
+    const ud = bank.userData;
+    // drift with wind + gentle wandering
+    bank.position.x = ud.baseX + elapsed * ud.speed * wind.dir.x * 0.5
+      + Math.sin(elapsed * 0.08 + ud.driftPhase) * 2;
+    bank.position.z = ud.baseZ + elapsed * ud.speed * wind.dir.y * 0.3
+      + Math.cos(elapsed * 0.06 + ud.driftPhase * 1.3) * 1.5;
+
+    // gentle vertical bob (absolute, not accumulating)
+    bank.position.y = ud.baseY + Math.sin(elapsed * 0.15 + ud.driftPhase) * 0.08;
+
+    // wrap around when drifting too far
+    const wrapDist = RADIUS * 4;
+    if (bank.position.x > wrapDist) { bank.position.x -= wrapDist * 2; ud.baseX -= wrapDist * 2; }
+    if (bank.position.x < -wrapDist) { bank.position.x += wrapDist * 2; ud.baseX += wrapDist * 2; }
+    if (bank.position.z > wrapDist) { bank.position.z -= wrapDist * 2; ud.baseZ -= wrapDist * 2; }
+    if (bank.position.z < -wrapDist) { bank.position.z += wrapDist * 2; ud.baseZ += wrapDist * 2; }
+
+    // in walk mode: fade opacity when camera is inside the fog bank
+    if (walkMode) {
+      const dx = bank.position.x - walkPos.x;
+      const dz = bank.position.z - walkPos.z;
+      const distSq = dx * dx + dz * dz;
+      // if player is inside the fog, boost opacity for immersion
+      const insideFactor = distSq < 4 ? 1.3 : 1.0;
+      bank.children.forEach(puff => {
+        puff.material.opacity = ud.baseOpacity * insideFactor;
+      });
+    }
+  });
+}
+
+// ── WEATHER SYSTEM (rain streaks + soft snow) ─────────────────
+// Rain: LineSegments with per-vertex alpha (bright head → fading tail), angled with wind
+// Snow: Points with custom shader (soft feathered circles, per-particle size/alpha variation)
+const WEATHER_COUNT = 600;
+const WEATHER_SPAWN_RADIUS = RADIUS * 2.2;
+const WEATHER_SPAWN_HEIGHT = 7;
+
+// ── shared state
+let weatherType = 'none';
+let weatherIntensity = 0;
+let weatherActiveCount = 0;
+let weatherFade = 0;
+// rain audio nodes are initialized in initAudio()
+let rainAudioGain = null;
+
+// per-particle simulation data (shared by rain and snow)
+const wxPos = new Float32Array(WEATHER_COUNT * 3);   // position xyz
+const wxVel = new Float32Array(WEATHER_COUNT * 3);   // velocity xyz
+const wxAlpha = new Float32Array(WEATHER_COUNT);      // per-particle phase/randomness
+const wxSize = new Float32Array(WEATHER_COUNT);       // per-particle size (snow only)
+
+// ── RAIN MESH (LineSegments — each drop is head + tail vertex) ──
+const rainPositions = new Float32Array(WEATHER_COUNT * 2 * 3); // 2 verts per drop
+const rainAlphas = new Float32Array(WEATHER_COUNT * 2);         // alpha per vertex
+const rainGeo = new THREE.BufferGeometry();
+rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainPositions, 3));
+rainGeo.setAttribute('alpha', new THREE.Float32BufferAttribute(rainAlphas, 1));
+
+const rainMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  uniforms: {
+    uColor: { value: new THREE.Color(0xb0c8e0) },
+    uOpacity: { value: 0.0 },
+  },
+  vertexShader: `
+    attribute float alpha;
+    varying float vAlpha;
+    void main() {
+      vAlpha = alpha;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform vec3 uColor;
+    uniform float uOpacity;
+    varying float vAlpha;
+    void main() {
+      gl_FragColor = vec4(uColor, vAlpha * uOpacity);
+    }
+  `,
+});
+const rainMesh = new THREE.LineSegments(rainGeo, rainMat);
+rainMesh.frustumCulled = false;
+rainMesh.visible = false;
+scene.add(rainMesh);
+
+// ── SNOW MESH (Points with custom soft-flake shader) ──
+const snowPositions = new Float32Array(WEATHER_COUNT * 3);
+const snowSizes = new Float32Array(WEATHER_COUNT);
+const snowAlphas = new Float32Array(WEATHER_COUNT);
+const snowGeo = new THREE.BufferGeometry();
+snowGeo.setAttribute('position', new THREE.Float32BufferAttribute(snowPositions, 3));
+snowGeo.setAttribute('size', new THREE.Float32BufferAttribute(snowSizes, 1));
+snowGeo.setAttribute('alpha', new THREE.Float32BufferAttribute(snowAlphas, 1));
+
+const snowMat = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  uniforms: {
+    uOpacity: { value: 0.0 },
+    uColor: { value: new THREE.Color(0xe8f0ff) },
+  },
+  vertexShader: `
+    attribute float size;
+    attribute float alpha;
+    varying float vAlpha;
+    void main() {
+      vAlpha = alpha;
+      vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+      gl_PointSize = size * (200.0 / -mvPos.z);
+      gl_Position = projectionMatrix * mvPos;
+    }
+  `,
+  fragmentShader: `
+    uniform float uOpacity;
+    uniform vec3 uColor;
+    varying float vAlpha;
+    void main() {
+      // soft feathered circle
+      float dist = length(gl_PointCoord - vec2(0.5));
+      float circle = 1.0 - smoothstep(0.3, 0.5, dist);
+      // sparkle highlight in center
+      float sparkle = 1.0 - smoothstep(0.0, 0.15, dist);
+      vec3 col = uColor + sparkle * 0.15;
+      gl_FragColor = vec4(col, circle * vAlpha * uOpacity);
+    }
+  `,
+});
+const snowMesh = new THREE.Points(snowGeo, snowMat);
+snowMesh.frustumCulled = false;
+snowMesh.visible = false;
+scene.add(snowMesh);
+
+// ── RAIN STREAK CONFIG ──
+const RAIN_STREAK_LENGTH = 0.35;   // base streak length
+const RAIN_STREAK_WIND_MULT = 0.5; // how much wind elongates the streak
+
+function initWeather(land) {
+  weatherType = land.weather || 'none';
+  weatherIntensity = land.weatherIntensity || 0;
+  weatherActiveCount = Math.floor(WEATHER_COUNT * weatherIntensity);
+  weatherFade = 0;
+
+  rainMesh.visible = false;
+  snowMesh.visible = false;
+
+  if (weatherType === 'none') return;
+
+  // spawn particles in a cylinder above the island
+  for (let i = 0; i < WEATHER_COUNT; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = Math.random() * WEATHER_SPAWN_RADIUS;
+    wxPos[i * 3] = Math.cos(a) * r;
+    wxPos[i * 3 + 1] = Math.random() * WEATHER_SPAWN_HEIGHT + 1;
+    wxPos[i * 3 + 2] = Math.sin(a) * r;
+    wxAlpha[i] = Math.random();
+
+    if (weatherType === 'rain') {
+      wxVel[i * 3] = (Math.random() - 0.5) * 0.15;
+      wxVel[i * 3 + 1] = -(5 + Math.random() * 4); // fast: 5-9 units/s
+      wxVel[i * 3 + 2] = (Math.random() - 0.5) * 0.15;
+      wxSize[i] = 0; // unused for rain
+    } else {
+      wxVel[i * 3] = (Math.random() - 0.5) * 0.3;
+      wxVel[i * 3 + 1] = -(0.2 + Math.random() * 0.5); // slow drift: 0.2-0.7
+      wxVel[i * 3 + 2] = (Math.random() - 0.5) * 0.3;
+      // varying flake sizes: small, medium, large with different distributions
+      const sizeRoll = Math.random();
+      wxSize[i] = sizeRoll < 0.5 ? 0.03 + Math.random() * 0.02  // 50% small
+        : sizeRoll < 0.85 ? 0.06 + Math.random() * 0.04          // 35% medium
+        : 0.12 + Math.random() * 0.06;                            // 15% large fluffy
+    }
+  }
+
+  if (weatherType === 'rain') {
+    rainMesh.visible = true;
+    // init rain line positions (will be overwritten in update)
+    for (let i = 0; i < WEATHER_COUNT; i++) {
+      const i6 = i * 6;
+      rainPositions[i6] = wxPos[i * 3];
+      rainPositions[i6 + 1] = wxPos[i * 3 + 1];
+      rainPositions[i6 + 2] = wxPos[i * 3 + 2];
+      rainPositions[i6 + 3] = wxPos[i * 3];
+      rainPositions[i6 + 4] = wxPos[i * 3 + 1] + 0.2;
+      rainPositions[i6 + 5] = wxPos[i * 3 + 2];
+      // alpha: bright at head, dim at tail
+      rainAlphas[i * 2] = 0.7 + Math.random() * 0.3;    // head (bright)
+      rainAlphas[i * 2 + 1] = 0.05 + Math.random() * 0.1; // tail (nearly invisible)
+    }
+    rainGeo.attributes.position.needsUpdate = true;
+    rainGeo.attributes.alpha.needsUpdate = true;
+  } else {
+    snowMesh.visible = true;
+    for (let i = 0; i < WEATHER_COUNT; i++) {
+      snowPositions[i * 3] = wxPos[i * 3];
+      snowPositions[i * 3 + 1] = wxPos[i * 3 + 1];
+      snowPositions[i * 3 + 2] = wxPos[i * 3 + 2];
+      snowSizes[i] = wxSize[i];
+      snowAlphas[i] = 0.4 + Math.random() * 0.5;
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+    snowGeo.attributes.size.needsUpdate = true;
+    snowGeo.attributes.alpha.needsUpdate = true;
+  }
+}
+
+// ── SPLASH RINGS (rain impact on water) ──────────
+const MAX_SPLASHES = 50;
+const splashRings = [];
+const splashRingGeo = new THREE.RingGeometry(0.02, 0.08, 16);
+const splashRingMat = new THREE.MeshBasicMaterial({
+  color: 0xd8f0f0, transparent: true, opacity: 0.6,
+  depthWrite: false, side: THREE.DoubleSide,
+});
+
+for (let i = 0; i < MAX_SPLASHES; i++) {
+  const ring = new THREE.Mesh(splashRingGeo, splashRingMat.clone());
+  ring.rotation.x = -Math.PI / 2;
+  ring.visible = false;
+  ring.userData.life = 0;
+  ring.userData.maxLife = 0;
+  scene.add(ring);
+  splashRings.push(ring);
+}
+let splashIndex = 0;
+
+function spawnSplash(x, z) {
+  const ring = splashRings[splashIndex];
+  splashIndex = (splashIndex + 1) % MAX_SPLASHES;
+  ring.position.set(x, 0.02 + tideOffset, z);
+  ring.scale.setScalar(0.5);
+  ring.material.opacity = 0.5 * weatherFade;
+  ring.visible = true;
+  ring.userData.life = 0;
+  ring.userData.maxLife = 0.3 + Math.random() * 0.2;
+}
+
+function updateSplashes(dt) {
+  for (const ring of splashRings) {
+    if (!ring.visible) continue;
+    ring.userData.life += dt;
+    const t = ring.userData.life / ring.userData.maxLife;
+    if (t >= 1) {
+      ring.visible = false;
+      continue;
+    }
+    ring.scale.setScalar(0.5 + t * 4.0);
+    ring.material.opacity = (1 - t * t) * 0.45 * weatherFade;
+  }
+}
+
+function updateWeather(dt) {
+  if (weatherType === 'none' || weatherActiveCount === 0) {
+    updateSplashes(dt);
+    return;
+  }
+
+  // fade in smoothly
+  weatherFade = Math.min(1, weatherFade + dt * 0.5);
+  const isRain = weatherType === 'rain';
+
+  // wind influence
+  const windPushX = wind.dir.x * wind.strength;
+  const windPushZ = wind.dir.y * wind.strength;
+  const splashRadius = RADIUS * 1.5;
+
+  if (isRain) {
+    // update rain opacity
+    rainMat.uniforms.uOpacity.value = 0.5 * weatherFade * weatherIntensity;
+
+    const rp = rainGeo.attributes.position.array;
+    for (let i = 0; i < weatherActiveCount; i++) {
+      const i3 = i * 3;
+      const i6 = i * 6;
+
+      // move particle with velocity + wind
+      wxPos[i3] += (wxVel[i3] + windPushX * 1.2) * dt;
+      wxPos[i3 + 1] += wxVel[i3 + 1] * dt;
+      wxPos[i3 + 2] += (wxVel[i3 + 2] + windPushZ * 1.2) * dt;
+
+      // respawn check
+      if (wxPos[i3 + 1] < -0.5 ||
+          Math.abs(wxPos[i3]) > WEATHER_SPAWN_RADIUS * 1.2 ||
+          Math.abs(wxPos[i3 + 2]) > WEATHER_SPAWN_RADIUS * 1.2) {
+        // splash ring on water impact
+        if (wxPos[i3 + 1] < 0.15) {
+          const sx = wxPos[i3], sz = wxPos[i3 + 2];
+          const dist = Math.sqrt(sx * sx + sz * sz);
+          if (dist < splashRadius && Math.random() < 0.35) {
+            spawnSplash(sx, sz);
+          }
+        }
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * WEATHER_SPAWN_RADIUS;
+        wxPos[i3] = Math.cos(a) * r;
+        wxPos[i3 + 1] = WEATHER_SPAWN_HEIGHT + Math.random() * 2;
+        wxPos[i3 + 2] = Math.sin(a) * r;
+      }
+
+      // compute streak direction from actual velocity + wind
+      // streak tail = position offset backwards along velocity vector
+      const vx = wxVel[i3] + windPushX * 1.2;
+      const vy = wxVel[i3 + 1];
+      const vz = wxVel[i3 + 2] + windPushZ * 1.2;
+      const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+      const streakLen = RAIN_STREAK_LENGTH + wind.strength * RAIN_STREAK_WIND_MULT;
+      const inv = streakLen / (speed || 1);
+
+      // head vertex (current position)
+      rp[i6] = wxPos[i3];
+      rp[i6 + 1] = wxPos[i3 + 1];
+      rp[i6 + 2] = wxPos[i3 + 2];
+      // tail vertex (offset backwards along velocity)
+      rp[i6 + 3] = wxPos[i3] - vx * inv;
+      rp[i6 + 4] = wxPos[i3 + 1] - vy * inv;
+      rp[i6 + 5] = wxPos[i3 + 2] - vz * inv;
+    }
+
+    // hide inactive
+    for (let i = weatherActiveCount; i < WEATHER_COUNT; i++) {
+      const i6 = i * 6;
+      rp[i6 + 1] = -100; rp[i6 + 4] = -100;
+    }
+    rainGeo.attributes.position.needsUpdate = true;
+
+  } else {
+    // ── SNOW UPDATE ──
+    snowMat.uniforms.uOpacity.value = weatherFade * weatherIntensity;
+
+    const sp = snowGeo.attributes.position.array;
+    const sa = snowGeo.attributes.alpha.array;
+    const ss = snowGeo.attributes.size.array;
+
+    for (let i = 0; i < weatherActiveCount; i++) {
+      const i3 = i * 3;
+      const phase = wxAlpha[i];
+      const y = wxPos[i3 + 1];
+
+      // base movement: velocity + gentler wind influence
+      wxPos[i3] += (wxVel[i3] + windPushX * 0.4) * dt;
+      wxPos[i3 + 1] += wxVel[i3 + 1] * dt;
+      wxPos[i3 + 2] += (wxVel[i3 + 2] + windPushZ * 0.4) * dt;
+
+      // complex wandering: figure-8 / tumbling motion
+      const wander1 = Math.sin(phase * 12.5 + y * 1.8) * dt * 0.35;
+      const wander2 = Math.cos(phase * 8.3 + y * 1.3) * dt * 0.25;
+      const wander3 = Math.sin(phase * 5.7 + y * 2.5 + wxPos[i3] * 0.5) * dt * 0.15;
+      wxPos[i3] += wander1 + wander3;
+      wxPos[i3 + 2] += wander2;
+
+      // occasional thermal updraft (large flakes catch air)
+      if (wxSize[i] > 0.08) {
+        const updraft = Math.sin(phase * 3 + y * 0.5) * 0.15;
+        if (updraft > 0) wxPos[i3 + 1] += updraft * dt;
+      }
+
+      // respawn check
+      if (wxPos[i3 + 1] < -0.3 ||
+          Math.abs(wxPos[i3]) > WEATHER_SPAWN_RADIUS * 1.2 ||
+          Math.abs(wxPos[i3 + 2]) > WEATHER_SPAWN_RADIUS * 1.2) {
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * WEATHER_SPAWN_RADIUS;
+        wxPos[i3] = Math.cos(a) * r;
+        wxPos[i3 + 1] = WEATHER_SPAWN_HEIGHT + Math.random() * 2;
+        wxPos[i3 + 2] = Math.sin(a) * r;
+        // re-randomize size and phase on respawn for variety
+        const sizeRoll = Math.random();
+        wxSize[i] = sizeRoll < 0.5 ? 0.03 + Math.random() * 0.02
+          : sizeRoll < 0.85 ? 0.06 + Math.random() * 0.04
+          : 0.12 + Math.random() * 0.06;
+        wxAlpha[i] = Math.random();
+      }
+
+      // write to GPU buffers
+      sp[i3] = wxPos[i3];
+      sp[i3 + 1] = wxPos[i3 + 1];
+      sp[i3 + 2] = wxPos[i3 + 2];
+      ss[i] = wxSize[i];
+      // per-flake alpha: gentle pulsing based on phase + height
+      sa[i] = (0.4 + 0.3 * Math.sin(phase * 8 + y * 1.5)) * (wxSize[i] > 0.08 ? 1.0 : 0.75);
+    }
+
+    // hide inactive
+    for (let i = weatherActiveCount; i < WEATHER_COUNT; i++) {
+      sp[i * 3 + 1] = -100;
+      sa[i] = 0;
+    }
+    snowGeo.attributes.position.needsUpdate = true;
+    snowGeo.attributes.alpha.needsUpdate = true;
+    snowGeo.attributes.size.needsUpdate = true;
+  }
+
+  updateSplashes(dt);
+}
+
+// ── ANIMATION CACHE BUILDER ─────────────────────
+// Traverse islandGroup once after creation, cache refs by type for O(1) per-frame iteration
+function _rebuildAnimCaches() {
+  _cachedFlowers = []; _cachedGrass = []; _cachedTrees = [];
+  _cachedBushes = []; _cachedGlow = []; _cachedLeaves = []; _cachedLava = [];
+  islandGroup.traverse(child => {
+    if (child.userData.isFlower) _cachedFlowers.push(child);
+    else if (child.userData.isGrass) _cachedGrass.push(child);
+    else if (child.userData.isTree) _cachedTrees.push(child);
+    else if (child.userData.isBush) _cachedBushes.push(child);
+    else if (child.userData.isGlow) _cachedGlow.push(child);
+    else if (child.userData.isLeaf) _cachedLeaves.push(child);
+    else if (child.userData.isLava) _cachedLava.push(child);
+  });
+}
+
 // ── INIT ────────────────────────────────────────
+// declared early to avoid TDZ — referenced in updateDayNight() called during init
+let photoMode = false;
+let photoTimeFrozen = false;
+let photoUIHidden = false;
+
 islandGroup = createIsland(LANDS[0]);
 cloudGroup = createClouds(LANDS[0]);
 particleGroup = createParticles(LANDS[0]);
 scene.add(islandGroup);
 scene.add(cloudGroup);
 scene.add(particleGroup);
+_rebuildAnimCaches();
 updateSceneColors(LANDS[0]);
+initWeather(LANDS[0]);
+createFogBanks(LANDS[0]);
+
+// ── AUDIO ENGINE — Elder Scrolls / Ghibli-inspired soundscape ─────
+// Bus architecture: musicBus, ambientBus, sfxBus → masterComp → destination
+// Shared convolution reverb with per-bus send levels
+// Surface-aware footsteps, biome ambient signatures, environmental events
+let audioCtx = null;
+let audioInitialized = false;
+
+// master chain
+let masterGain = null;
+let masterComp = null; // dynamics compressor prevents clipping
+
+// buses — separate gain nodes for mixing control
+let musicBus = null;   // notes, chords, pad
+let ambientBus = null; // wind, water, rain, crickets, birds, biome ambience
+let sfxBus = null;     // footsteps, splashes, UI sounds
+
+// reverb — shared convolution with per-bus send levels
+let reverbNode = null;
+let reverbGain = null;
+let musicReverbSend = null;
+let ambientReverbSend = null;
+let sfxReverbSend = null;
+
+// music sources
+let padOsc1, padOsc2, padOsc3, padGain, padFilterNode, padFilterLFO, padFilterLFOGain;
+let noteGain = null;
+
+// ambient sources
+let windLayers = [];
+let windMasterGain = null;
+let waterNoise, waterGain, waterFilter;
+let waterLapNoise, waterLapGain, waterLapFilter; // second layer: gentle lapping
+let rainLayers = []; // 3-layer rain (rumble, patter, sizzle)
+let rainMasterGain = null;
+let cricketGain = null;
+let birdGain = null;
+let biomeAmbientGain = null; // per-biome signature sounds
+let biomeAmbientSources = []; // active continuous biome ambient sources
+
+// timing
+let nextNoteTime = 0;
+let nextChordTime = 0;
+let lastFootstepPhase = 0;
+let audioThrottleAccum = 0;
+let nextCricketTime = 0;
+let nextBirdTime = 0;
+let nextThunderTime = 0;
+let nextBiomeEventTime = 0;
+
+// per-biome cricket configs: baseFreq, trills, interval range, volume
+const CRICKET_CONFIGS = [
+  { freq: 4200, trills: [2,4], interval: [1.5, 4.0], vol: 0.8 },   // Meadow — classic field cricket
+  { freq: 3200, trills: [1,2], interval: [2.0, 6.0], vol: 0.5 },   // Mushroom — deep sporadic clicks
+  { freq: 5500, trills: [3,5], interval: [3.0, 8.0], vol: 0.3 },   // Crystal — rare ice pings
+  { freq: 4000, trills: [2,3], interval: [1.2, 3.5], vol: 0.9 },   // Autumn — busy katydids
+  { freq: 4800, trills: [1,3], interval: [2.5, 5.0], vol: 0.4 },   // Coral — sparse tropical clicks
+  { freq: 3600, trills: [3,6], interval: [0.8, 2.5], vol: 1.0 },   // Spirit — dense chorus
+  { freq: 0,    trills: [0,0], interval: [99, 99],   vol: 0 },      // Volcanic — no insects (too hot)
+  { freq: 4500, trills: [2,4], interval: [1.5, 4.5], vol: 0.7 },   // Cherry — evening cicadas
+  { freq: 0,    trills: [0,0], interval: [99, 99],   vol: 0 },      // Frozen — no insects (too cold)
+];
+
+// per-biome birdsong configs
+const BIRD_CONFIGS = [
+  { freq: 2200, notes: [2,4], interval: [4, 10], vol: 0.7, style: 'song' },   // Meadow — gentle songbird
+  { freq: 1600, notes: [1,2], interval: [6, 14], vol: 0.4, style: 'call' },   // Mushroom — soft coo
+  { freq: 3200, notes: [1,1], interval: [8, 20], vol: 0.25, style: 'call' },  // Crystal — single high ping
+  { freq: 1800, notes: [2,3], interval: [5, 12], vol: 0.5, style: 'song' },   // Autumn — robin
+  { freq: 2600, notes: [1,2], interval: [6, 15], vol: 0.35, style: 'call' },  // Coral — seabird
+  { freq: 1400, notes: [1,2], interval: [8, 18], vol: 0.3, style: 'call' },   // Spirit — owl hoot
+  { freq: 0,    notes: [0,0], interval: [99, 99], vol: 0, style: 'song' },    // Volcanic — none
+  { freq: 2400, notes: [3,5], interval: [4, 9],  vol: 0.6, style: 'trill' },  // Cherry — nightingale
+  { freq: 0,    notes: [0,0], interval: [99, 99], vol: 0, style: 'song' },    // Frozen — none
+];
+
+// per-biome musical scales (pentatonic/modal, spanning ~2 octaves)
+const SCALES = {
+  meadow:   [60, 62, 64, 67, 69, 72, 74, 76, 79, 81],  // C major pent
+  mushroom: [58, 60, 63, 65, 67, 70, 72, 75, 77, 79],   // Bb minor pent
+  crystal:  [64, 66, 69, 71, 73, 76, 78, 81, 83, 85],   // E minor pent
+  autumn:   [57, 60, 62, 64, 67, 69, 72, 74, 76, 79],   // A mixolydian
+  coral:    [65, 67, 69, 72, 74, 77, 79, 81, 84, 86],   // F major pent
+  spirit:   [55, 58, 60, 62, 65, 67, 70, 72, 74, 77],   // G minor pent
+  volcanic: [53, 55, 58, 60, 62, 65, 67, 70, 72, 74],   // F minor pent
+  cherry:   [62, 64, 67, 69, 71, 74, 76, 79, 81, 83],   // D major pent
+  frozen:   [59, 62, 64, 66, 69, 71, 74, 76, 78, 81],   // B minor pent
+};
+const BIOME_SCALES = [
+  SCALES.meadow, SCALES.mushroom, SCALES.crystal, SCALES.autumn,
+  SCALES.coral, SCALES.spirit, SCALES.volcanic, SCALES.cherry, SCALES.frozen,
+];
+
+// biome ambient signature configs — unique continuous/periodic sounds per biome
+const BIOME_AMBIENT = [
+  // Meadow: gentle stream babble
+  { type: 'stream', gain: 0.018 },
+  // Mushroom: water drips + deep ethereal hum
+  { type: 'drips', gain: 0.012, interval: [1.5, 5], freq: 1200 },
+  // Crystal: resonant metallic tones echoing off peaks
+  { type: 'resonance', gain: 0.008, interval: [4, 12], freq: 2800 },
+  // Autumn: dry leaf rustling
+  { type: 'rustle', gain: 0.014 },
+  // Coral: underwater bubbles
+  { type: 'bubbles', gain: 0.01, interval: [0.8, 3], freq: 600 },
+  // Spirit: wind chimes + deep forest hum
+  { type: 'chimes', gain: 0.01, interval: [5, 15], freq: 2000 },
+  // Volcanic: lava bubbles + deep tectonic rumble
+  { type: 'lava', gain: 0.025 },
+  // Cherry: delicate wind chimes
+  { type: 'chimes', gain: 0.008, interval: [6, 18], freq: 2800 },
+  // Frozen: howling void + ice stress creaks
+  { type: 'ice', gain: 0.012, interval: [8, 25], freq: 180 },
+];
+
+// surface types for footsteps — each has unique sonic character
+const SURFACE = {
+  grass: { baseFreq: 100, filterFreq: 400, vol: 0.05, decay: 0.08, noise: true },
+  dirt:  { baseFreq: 140, filterFreq: 600, vol: 0.06, decay: 0.06, noise: true },
+  rock:  { baseFreq: 200, filterFreq: 1200, vol: 0.07, decay: 0.04, noise: false },
+  sand:  { baseFreq: 80,  filterFreq: 800, vol: 0.04, decay: 0.1, noise: true },
+  snow:  { baseFreq: 60,  filterFreq: 500, vol: 0.04, decay: 0.12, noise: true },
+  water: { baseFreq: 180, filterFreq: 1600, vol: 0.08, decay: 0.15, noise: true },
+};
+
+function midiToFreq(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
+
+function createWhiteNoise(ctx, duration) {
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  return buffer;
+}
+
+// pink noise — 1/f spectrum, more natural sounding than white noise
+function createPinkNoise(ctx, duration) {
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    b0 = 0.99886 * b0 + white * 0.0555179;
+    b1 = 0.99332 * b1 + white * 0.0750759;
+    b2 = 0.96900 * b2 + white * 0.1538520;
+    b3 = 0.86650 * b3 + white * 0.3104856;
+    b4 = 0.55000 * b4 + white * 0.5329522;
+    b5 = -0.7616 * b5 - white * 0.0168980;
+    data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+    b6 = white * 0.115926;
+  }
+  return buffer;
+}
+
+function createReverb(ctx) {
+  // rich convolution reverb — early reflections + long diffuse tail
+  // inspired by the vast, airy spaces of Elder Scrolls interiors
+  const length = ctx.sampleRate * 4.5;
+  const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    // early reflections (first 80ms) — discrete echoes for spatial definition
+    const earlyEnd = Math.floor(ctx.sampleRate * 0.08);
+    for (let i = 0; i < earlyEnd; i++) {
+      // sparse taps at irregular intervals
+      if (Math.random() < 0.003) {
+        data[i] = (Math.random() * 2 - 1) * 0.6 * (1 - i / earlyEnd);
+      }
+    }
+    // late diffuse tail — smooth exponential decay with randomized diffusion
+    for (let i = earlyEnd; i < length; i++) {
+      const progress = (i - earlyEnd) / (length - earlyEnd);
+      // dual-slope decay: faster initially, slower tail (like a real reverberant space)
+      const decay = progress < 0.3
+        ? Math.pow(1 - progress / 0.3, 1.8) * 0.7 + 0.3 * Math.pow(1 - progress, 3.5)
+        : Math.pow(1 - progress, 3.5) * 0.3;
+      // channel offset for stereo width
+      const stereoPhase = ch === 0 ? 0 : 0.37;
+      data[i] = (Math.random() * 2 - 1) * decay * (0.8 + 0.2 * Math.sin(i * 0.001 + stereoPhase));
+    }
+  }
+  const conv = ctx.createConvolver();
+  conv.buffer = impulse;
+  return conv;
+}
+
+// helper: auto-cleanup oscillator + connected nodes
+function autoCleanup(osc, ...nodes) {
+  osc.onended = () => { osc.disconnect(); nodes.forEach(n => n.disconnect()); };
+}
+
+// play a single reverberant piano-like note (Minecraft/Skyrim style)
+function playNote(midi, velocity, delay) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime + (delay || 0);
+  const freq = midiToFreq(midi);
+
+  // triangle + detuned sine for warm, slightly shimmery tone
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+
+  const osc2 = audioCtx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.value = freq * 1.002; // slight detune for chorusing
+
+  const env = audioCtx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(velocity * 0.15, t + 0.01);
+  env.gain.exponentialRampToValueAtTime(velocity * 0.08, t + 0.8);
+  env.gain.exponentialRampToValueAtTime(0.001, t + 4.0);
+
+  // filter darkens over time (bright attack → muted sustain)
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(2000 + velocity * 1500, t);
+  filter.frequency.exponentialRampToValueAtTime(400, t + 3.0);
+
+  osc.connect(filter);
+  osc2.connect(filter);
+  filter.connect(env);
+  env.connect(noteGain);
+
+  osc.start(t);
+  osc2.start(t);
+  osc.stop(t + 5);
+  osc2.stop(t + 5);
+  osc.onended = () => { osc.disconnect(); osc2.disconnect(); filter.disconnect(); env.disconnect(); };
+}
+
+// soft two-note chord (dawn/dusk transitions)
+function playChord(midi1, midi2, velocity) {
+  playNote(midi1, velocity * 0.7, 0);
+  playNote(midi2, velocity * 0.5, 0.3 + Math.random() * 0.5);
+}
+
+function initAudio() {
+  return; // audio disabled
+  if (audioInitialized) return;
+  audioInitialized = true;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // ── MASTER CHAIN ──
+  // masterGain → compressor → destination
+  masterComp = audioCtx.createDynamicsCompressor();
+  masterComp.threshold.value = -18;  // start compressing at -18dB
+  masterComp.knee.value = 12;        // soft knee for transparent compression
+  masterComp.ratio.value = 4;        // 4:1 ratio — firm but not limiting
+  masterComp.attack.value = 0.003;   // fast attack catches transients
+  masterComp.release.value = 0.15;   // smooth release avoids pumping
+  masterComp.connect(audioCtx.destination);
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.4;
+  masterGain.connect(masterComp);
+
+  // ── REVERB ──
+  reverbNode = createReverb(audioCtx);
+  reverbGain = audioCtx.createGain();
+  reverbGain.gain.value = 0.35;
+  reverbNode.connect(reverbGain);
+  reverbGain.connect(masterComp); // reverb bypasses masterGain to avoid double-gain
+
+  // ── BUSES ──
+  musicBus = audioCtx.createGain();
+  musicBus.gain.value = 0.65;
+  musicBus.connect(masterGain);
+  musicReverbSend = audioCtx.createGain();
+  musicReverbSend.gain.value = 0.45; // notes get heavy reverb (Skyrim piano feel)
+  musicBus.connect(musicReverbSend);
+  musicReverbSend.connect(reverbNode);
+
+  ambientBus = audioCtx.createGain();
+  ambientBus.gain.value = 0.8;
+  ambientBus.connect(masterGain);
+  ambientReverbSend = audioCtx.createGain();
+  ambientReverbSend.gain.value = 0.15; // ambient gets subtle space
+  ambientBus.connect(ambientReverbSend);
+  ambientReverbSend.connect(reverbNode);
+
+  sfxBus = audioCtx.createGain();
+  sfxBus.gain.value = 0.7;
+  sfxBus.connect(masterGain);
+  sfxReverbSend = audioCtx.createGain();
+  sfxReverbSend.gain.value = 0.2; // footsteps get moderate reverb
+  sfxBus.connect(sfxReverbSend);
+  sfxReverbSend.connect(reverbNode);
+
+  // ── NOTE OUTPUT ──
+  noteGain = audioCtx.createGain();
+  noteGain.gain.value = 0.55;
+  noteGain.connect(musicBus);
+
+  // ── PAD DRONE — 3-oscillator evolving texture ──
+  padGain = audioCtx.createGain();
+  padGain.gain.value = 0.0;
+
+  // shared pad filter with LFO for slow movement
+  padFilterNode = audioCtx.createBiquadFilter();
+  padFilterNode.type = 'lowpass';
+  padFilterNode.frequency.value = 350;
+  padFilterNode.Q.value = 0.7;
+  padFilterNode.connect(padGain);
+  padGain.connect(musicBus);
+
+  // filter LFO — very slow breathing (0.04 Hz ≈ 25s cycle)
+  padFilterLFO = audioCtx.createOscillator();
+  padFilterLFO.type = 'sine';
+  padFilterLFO.frequency.value = 0.04;
+  padFilterLFOGain = audioCtx.createGain();
+  padFilterLFOGain.gain.value = 120; // sweeps ±120 Hz around center
+  padFilterLFO.connect(padFilterLFOGain);
+  padFilterLFOGain.connect(padFilterNode.frequency);
+  padFilterLFO.start();
+
+  // osc1: root note (sine, warm foundation)
+  padOsc1 = audioCtx.createOscillator();
+  padOsc1.type = 'sine';
+  padOsc1.frequency.value = midiToFreq(48);
+  padOsc1.connect(padFilterNode);
+  padOsc1.start();
+
+  // osc2: fifth (sine, harmonic bed)
+  padOsc2 = audioCtx.createOscillator();
+  padOsc2.type = 'sine';
+  padOsc2.frequency.value = midiToFreq(55);
+  padOsc2.connect(padFilterNode);
+  padOsc2.start();
+
+  // osc3: octave root (triangle, adds gentle overtones for richness)
+  padOsc3 = audioCtx.createOscillator();
+  padOsc3.type = 'triangle';
+  padOsc3.frequency.value = midiToFreq(36); // one octave below osc1
+  const padOsc3Gain = audioCtx.createGain();
+  padOsc3Gain.gain.value = 0.3; // subtle, just adds depth
+  padOsc3.connect(padOsc3Gain);
+  padOsc3Gain.connect(padFilterNode);
+  padOsc3.start();
+
+  // ── WIND — 3-layer ambient wind ──
+  windMasterGain = audioCtx.createGain();
+  windMasterGain.gain.value = 0;
+  windMasterGain.connect(ambientBus);
+
+  const windLayerConfigs = [
+    { type: 'bandpass', freq: 280, Q: 1.2, gain: 0.08, lfoRate: 0.07, lfoDepth: 150 },
+    { type: 'bandpass', freq: 900, Q: 0.6, gain: 0.05, lfoRate: 0.13, lfoDepth: 400 },
+    { type: 'highpass', freq: 2800, Q: 0.3, gain: 0.025, lfoRate: 0.23, lfoDepth: 800 },
+  ];
+  const windNoiseBuf = createPinkNoise(audioCtx, 4); // pink noise for more natural wind
+  for (const cfg of windLayerConfigs) {
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = windNoiseBuf;
+    noise.loop = true;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = cfg.type;
+    filter.frequency.value = cfg.freq;
+    filter.Q.value = cfg.Q;
+    const lfo = audioCtx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = cfg.lfoRate;
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = cfg.lfoDepth;
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    lfo.start();
+    const layerGain = audioCtx.createGain();
+    layerGain.gain.value = cfg.gain;
+    noise.connect(filter);
+    filter.connect(layerGain);
+    layerGain.connect(windMasterGain);
+    noise.start();
+    windLayers.push({ noise, filter, lfo, lfoGain, layerGain, baseFreq: cfg.freq, baseLfoDepth: cfg.lfoDepth, baseGain: cfg.gain });
+  }
+
+  // ── WATER — dual-layer: deep rumble + gentle surface lapping ──
+  waterGain = audioCtx.createGain();
+  waterGain.gain.value = 0;
+  waterFilter = audioCtx.createBiquadFilter();
+  waterFilter.type = 'lowpass';
+  waterFilter.frequency.value = 250; // starts muffled, opens with proximity
+  waterFilter.Q.value = 0.8;
+  const waterBuf = createPinkNoise(audioCtx, 4);
+  waterNoise = audioCtx.createBufferSource();
+  waterNoise.buffer = waterBuf;
+  waterNoise.loop = true;
+  waterNoise.connect(waterFilter);
+  waterFilter.connect(waterGain);
+  waterGain.connect(ambientBus);
+  waterNoise.start();
+
+  // second water layer: higher-frequency lapping/foam
+  waterLapGain = audioCtx.createGain();
+  waterLapGain.gain.value = 0;
+  waterLapFilter = audioCtx.createBiquadFilter();
+  waterLapFilter.type = 'bandpass';
+  waterLapFilter.frequency.value = 1200;
+  waterLapFilter.Q.value = 0.5;
+  const lapBuf = createWhiteNoise(audioCtx, 4);
+  waterLapNoise = audioCtx.createBufferSource();
+  waterLapNoise.buffer = lapBuf;
+  waterLapNoise.loop = true;
+  waterLapNoise.connect(waterLapFilter);
+  waterLapFilter.connect(waterLapGain);
+  waterLapGain.connect(ambientBus);
+  waterLapNoise.start();
+
+  // ── RAIN — 3-layer rain (low rumble + mid patter + high sizzle) ──
+  rainMasterGain = audioCtx.createGain();
+  rainMasterGain.gain.value = 0;
+  rainMasterGain.connect(ambientBus);
+  rainAudioGain = rainMasterGain; // keep external reference working
+
+  const rainLayerConfigs = [
+    // low: distant thunder rumble, gives weight
+    { type: 'bandpass', freq: 150, Q: 0.8, gain: 0.5, noiseFn: createPinkNoise },
+    // mid: the main body of rain hitting surfaces
+    { type: 'bandpass', freq: 1200, Q: 0.4, gain: 0.35, noiseFn: createWhiteNoise },
+    // high: bright sizzle of rain on leaves/water
+    { type: 'highpass', freq: 4000, Q: 0.3, gain: 0.15, noiseFn: createWhiteNoise },
+  ];
+  for (const cfg of rainLayerConfigs) {
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = cfg.noiseFn(audioCtx, 4);
+    noise.loop = true;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = cfg.type;
+    filter.frequency.value = cfg.freq;
+    filter.Q.value = cfg.Q;
+    const layerGain = audioCtx.createGain();
+    layerGain.gain.value = cfg.gain;
+    noise.connect(filter);
+    filter.connect(layerGain);
+    layerGain.connect(rainMasterGain);
+    noise.start();
+    rainLayers.push({ noise, filter, layerGain });
+  }
+
+  // ── CRICKETS ──
+  cricketGain = audioCtx.createGain();
+  cricketGain.gain.value = 0;
+  cricketGain.connect(ambientBus);
+
+  // ── BIRDSONG ──
+  birdGain = audioCtx.createGain();
+  birdGain.gain.value = 0;
+  birdGain.connect(ambientBus);
+
+  // ── BIOME AMBIENT — per-biome signature sound bus ──
+  biomeAmbientGain = audioCtx.createGain();
+  biomeAmbientGain.gain.value = 0;
+  biomeAmbientGain.connect(ambientBus);
+  initBiomeAmbient(currentLandIndex);
+
+  // schedule initial events
+  nextNoteTime = audioCtx.currentTime + 2 + Math.random() * 4;
+  nextChordTime = audioCtx.currentTime + 15 + Math.random() * 20;
+  nextCricketTime = audioCtx.currentTime + 1 + Math.random() * 3;
+  nextBirdTime = audioCtx.currentTime + 2 + Math.random() * 5;
+  nextThunderTime = audioCtx.currentTime + 30 + Math.random() * 60;
+  nextBiomeEventTime = audioCtx.currentTime + 3 + Math.random() * 5;
+}
+
+// ── BIOME AMBIENT SYSTEM ──────────────────────────
+// Each biome has a continuous background texture + periodic one-shot sounds
+function stopBiomeAmbient() {
+  for (const src of biomeAmbientSources) {
+    try { src.stop(); src.disconnect(); } catch(e) {}
+  }
+  biomeAmbientSources = [];
+}
+
+function initBiomeAmbient(biomeIdx) {
+  if (!audioCtx || !biomeAmbientGain) return;
+  stopBiomeAmbient();
+  const cfg = BIOME_AMBIENT[biomeIdx];
+  if (!cfg) return;
+
+  // continuous texture layer (stream babble, lava rumble, leaf rustle, etc.)
+  if (cfg.type === 'stream' || cfg.type === 'rustle' || cfg.type === 'lava') {
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = cfg.type === 'lava' ? createPinkNoise(audioCtx, 4) : createWhiteNoise(audioCtx, 4);
+    noise.loop = true;
+    const filter = audioCtx.createBiquadFilter();
+    if (cfg.type === 'stream') {
+      // babbling brook: narrow bandpass centered at mid-freq with fast LFO for burbling
+      filter.type = 'bandpass';
+      filter.frequency.value = 1800;
+      filter.Q.value = 1.5;
+      const streamLFO = audioCtx.createOscillator();
+      streamLFO.type = 'sine';
+      streamLFO.frequency.value = 0.4; // slow burble rate
+      const streamLFOGain = audioCtx.createGain();
+      streamLFOGain.gain.value = 600;
+      streamLFO.connect(streamLFOGain);
+      streamLFOGain.connect(filter.frequency);
+      streamLFO.start();
+      biomeAmbientSources.push(streamLFO);
+    } else if (cfg.type === 'rustle') {
+      // dry leaves: highpass with fast LFO for crinkle texture
+      filter.type = 'highpass';
+      filter.frequency.value = 2000;
+      filter.Q.value = 0.3;
+      const rustleLFO = audioCtx.createOscillator();
+      rustleLFO.type = 'sine';
+      rustleLFO.frequency.value = 0.6;
+      const rustleLFOGain = audioCtx.createGain();
+      rustleLFOGain.gain.value = 1200;
+      rustleLFO.connect(rustleLFOGain);
+      rustleLFOGain.connect(filter.frequency);
+      rustleLFO.start();
+      biomeAmbientSources.push(rustleLFO);
+    } else { // lava
+      // deep tectonic rumble
+      filter.type = 'lowpass';
+      filter.frequency.value = 100;
+      filter.Q.value = 3;
+      const lavaLFO = audioCtx.createOscillator();
+      lavaLFO.type = 'sine';
+      lavaLFO.frequency.value = 0.15;
+      const lavaLFOGain = audioCtx.createGain();
+      lavaLFOGain.gain.value = 30;
+      lavaLFO.connect(lavaLFOGain);
+      lavaLFOGain.connect(filter.frequency);
+      lavaLFO.start();
+      biomeAmbientSources.push(lavaLFO);
+    }
+    const gain = audioCtx.createGain();
+    gain.gain.value = cfg.gain;
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(biomeAmbientGain);
+    noise.start();
+    biomeAmbientSources.push(noise);
+  }
+  // ramp in the biome ambient bus
+  biomeAmbientGain.gain.cancelScheduledValues(audioCtx.currentTime);
+  biomeAmbientGain.gain.setValueAtTime(0, audioCtx.currentTime);
+  biomeAmbientGain.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 2);
+}
+
+// ── BIOME ONE-SHOT EVENTS ──────────────────────────
+// Periodic sounds unique to each biome (drips, crystal pings, wind chimes, ice creaks)
+function playBiomeEvent() {
+  if (!audioCtx || !biomeAmbientGain) return;
+  const cfg = BIOME_AMBIENT[currentLandIndex];
+  if (!cfg || !cfg.interval) return;
+  const t = audioCtx.currentTime;
+
+  if (cfg.type === 'drips') {
+    // mushroom water drip — high pitched droplet plop
+    const freq = cfg.freq * (0.8 + Math.random() * 0.4);
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.4, t + 0.15);
+    const env = audioCtx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(cfg.gain * 0.8, t + 0.002);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+    osc.connect(env);
+    env.connect(biomeAmbientGain);
+    osc.start(t);
+    osc.stop(t + 0.25);
+    autoCleanup(osc, env);
+  } else if (cfg.type === 'resonance') {
+    // crystal resonance — high sine with long ring-out, like tapping a crystal glass
+    const freq = cfg.freq * (0.85 + Math.random() * 0.3);
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    // slight upward glide gives it a magical quality
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.01, t + 1.5);
+    const env = audioCtx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(cfg.gain, t + 0.005);
+    env.gain.exponentialRampToValueAtTime(cfg.gain * 0.3, t + 0.8);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 2.5);
+    // this goes through reverb for that enormous crystal cave echo
+    osc.connect(env);
+    env.connect(biomeAmbientGain);
+    env.connect(reverbNode); // extra reverb send for crystalline echo
+    osc.start(t);
+    osc.stop(t + 3);
+    autoCleanup(osc, env);
+  } else if (cfg.type === 'bubbles') {
+    // coral bubbles — quick frequency-dropping plop (like underwater)
+    const count = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const offset = i * (0.08 + Math.random() * 0.12);
+      const freq = cfg.freq * (0.7 + Math.random() * 0.6);
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + offset);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.3, t + offset + 0.08);
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0, t + offset);
+      env.gain.linearRampToValueAtTime(cfg.gain * 0.6, t + offset + 0.003);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.1);
+      osc.connect(env);
+      env.connect(biomeAmbientGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.15);
+      autoCleanup(osc, env);
+    }
+  } else if (cfg.type === 'chimes') {
+    // wind chimes — metallic sine tones with harmonics, like Ghibli temple bells
+    const noteCount = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < noteCount; i++) {
+      const offset = i * (0.3 + Math.random() * 0.5);
+      const freq = cfg.freq * (0.8 + Math.random() * 0.4);
+      // fundamental
+      const osc1 = audioCtx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.value = freq;
+      // first harmonic (slightly detuned for metallic quality)
+      const osc2 = audioCtx.createOscillator();
+      osc2.type = 'sine';
+      osc2.frequency.value = freq * 2.76; // non-integer partial = metallic
+      const harmGain = audioCtx.createGain();
+      harmGain.gain.value = 0.15; // quiet harmonic
+      osc2.connect(harmGain);
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0, t + offset);
+      env.gain.linearRampToValueAtTime(cfg.gain, t + offset + 0.003);
+      env.gain.exponentialRampToValueAtTime(cfg.gain * 0.2, t + offset + 0.5);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + offset + 2.5);
+      osc1.connect(env);
+      harmGain.connect(env);
+      env.connect(biomeAmbientGain);
+      env.connect(reverbNode); // chimes sound gorgeous with reverb
+      osc1.start(t + offset);
+      osc2.start(t + offset);
+      osc1.stop(t + offset + 3);
+      osc2.stop(t + offset + 3);
+      autoCleanup(osc1, env, harmGain);
+      osc2.onended = () => { osc2.disconnect(); };
+    }
+  } else if (cfg.type === 'ice') {
+    // ice stress creak — low pitched noise sweep (like glaciers shifting)
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = createWhiteNoise(audioCtx, 1);
+    noise.loop = false;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(cfg.freq, t);
+    filter.frequency.exponentialRampToValueAtTime(cfg.freq * 3, t + 0.3);
+    filter.frequency.exponentialRampToValueAtTime(cfg.freq * 0.5, t + 0.8);
+    filter.Q.value = 4;
+    const env = audioCtx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(cfg.gain, t + 0.05);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+    noise.connect(filter);
+    filter.connect(env);
+    env.connect(biomeAmbientGain);
+    noise.start(t);
+    noise.stop(t + 1.2);
+    noise.onended = () => { noise.disconnect(); filter.disconnect(); env.disconnect(); };
+  }
+}
+
+// ── THUNDER ──────────────────────────
+// Distant rumble for rainy biomes — low noise burst with long reverb tail
+function playThunder() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  // short burst of shaped noise = thunder crack
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = createPinkNoise(audioCtx, 2);
+  noise.loop = false;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(400, t);
+  filter.frequency.exponentialRampToValueAtTime(80, t + 1.5);
+  filter.Q.value = 0.5;
+  const env = audioCtx.createGain();
+  env.gain.setValueAtTime(0, t);
+  // distant crack: quick swell then long rumble
+  env.gain.linearRampToValueAtTime(0.06, t + 0.05);
+  env.gain.exponentialRampToValueAtTime(0.03, t + 0.3);
+  env.gain.exponentialRampToValueAtTime(0.001, t + 2.5);
+  noise.connect(filter);
+  filter.connect(env);
+  env.connect(ambientBus);
+  env.connect(reverbNode); // heavy reverb for that rolling echo
+  noise.start(t);
+  noise.stop(t + 3);
+  noise.onended = () => { noise.disconnect(); filter.disconnect(); env.disconnect(); };
+}
+
+// ── SURFACE-AWARE FOOTSTEPS ──────────────────────────
+// Detect surface from terrain height and biome, play matching foley
+function getSurfaceType(land) {
+  if (!walkMode) return 'grass';
+  const nx = walkPos.x / RADIUS;
+  const nz = walkPos.z / RADIUS;
+  const h = getTerrainHeight(nx, nz);
+  const mh = land.mountainHeight;
+  const terrainY = h * mh;
+
+  // walking in water
+  if (terrainY < tideOffset + 0.05) return 'water';
+  // very low = sand/shore
+  if (h < 0.15) return 'sand';
+  // snow biomes at high altitude
+  if (land.hasSnow && h > 0.55) return 'snow';
+  // high elevation = rock
+  if (h > 0.7) return 'rock';
+  // medium-high = dirt
+  if (h > 0.45) return 'dirt';
+  // default = grass
+  return 'grass';
+}
+
+function playFootstep(surface) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const s = SURFACE[surface] || SURFACE.grass;
+
+  // tonal component — each surface has a characteristic pitch
+  const osc = audioCtx.createOscillator();
+  osc.type = surface === 'rock' ? 'triangle' : 'sine';
+  const freq = s.baseFreq * (0.9 + Math.random() * 0.2);
+  osc.frequency.setValueAtTime(freq, t);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.5, t + s.decay);
+
+  const env = audioCtx.createGain();
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(s.vol, t + 0.004);
+  env.gain.exponentialRampToValueAtTime(0.0001, t + s.decay + 0.02);
+
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.value = s.filterFreq;
+  filt.Q.value = 0.5;
+
+  osc.connect(filt);
+  filt.connect(env);
+  env.connect(sfxBus);
+  osc.start(t);
+  osc.stop(t + s.decay + 0.05);
+
+  // noise component — crunch/rustle texture (grass, dirt, sand, snow, water)
+  if (s.noise) {
+    const noiseSrc = audioCtx.createBufferSource();
+    noiseSrc.buffer = createWhiteNoise(audioCtx, 0.2);
+    const noiseFilter = audioCtx.createBiquadFilter();
+    noiseFilter.type = surface === 'water' ? 'bandpass' : 'highpass';
+    // water splash is broader, snow is very muffled, others moderate
+    noiseFilter.frequency.value = surface === 'snow' ? 1000 :
+      surface === 'water' ? 800 : surface === 'sand' ? 1500 : 2000;
+    noiseFilter.Q.value = surface === 'water' ? 1.0 : 0.3;
+    const noiseEnv = audioCtx.createGain();
+    noiseEnv.gain.setValueAtTime(0, t);
+    noiseEnv.gain.linearRampToValueAtTime(s.vol * 0.5, t + 0.002);
+    noiseEnv.gain.exponentialRampToValueAtTime(0.0001, t + s.decay * 0.8);
+    noiseSrc.connect(noiseFilter);
+    noiseFilter.connect(noiseEnv);
+    noiseEnv.connect(sfxBus);
+    noiseSrc.start(t);
+    noiseSrc.stop(t + s.decay + 0.02);
+    noiseSrc.onended = () => { noiseSrc.disconnect(); noiseFilter.disconnect(); noiseEnv.disconnect(); };
+  }
+
+  // water splash gets extra high-frequency "splat"
+  if (surface === 'water') {
+    const splash = audioCtx.createOscillator();
+    splash.type = 'sine';
+    splash.frequency.setValueAtTime(400 + Math.random() * 200, t);
+    splash.frequency.exponentialRampToValueAtTime(100, t + 0.12);
+    const splashEnv = audioCtx.createGain();
+    splashEnv.gain.setValueAtTime(0, t + 0.01);
+    splashEnv.gain.linearRampToValueAtTime(0.04, t + 0.015);
+    splashEnv.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+    splash.connect(splashEnv);
+    splashEnv.connect(sfxBus);
+    splash.start(t);
+    splash.stop(t + 0.2);
+    autoCleanup(splash, splashEnv);
+  }
+
+  autoCleanup(osc, filt, env);
+}
+
+// cricket chirp — rapid trill of short sine bursts
+function playCricketChirp(cfg, nightness) {
+  if (!audioCtx || !cricketGain || cfg.vol === 0) return;
+  const t = audioCtx.currentTime;
+  const trillCount = cfg.trills[0] + Math.floor(Math.random() * (cfg.trills[1] - cfg.trills[0] + 1));
+  const baseFreq = cfg.freq * (0.9 + Math.random() * 0.2);
+  // FIX: volume scales only here (bus gain handles nightness separately)
+  const chirpVol = cfg.vol * 0.025;
+
+  for (let i = 0; i < trillCount; i++) {
+    const offset = i * 0.06;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq, t + offset);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.92, t + offset + 0.04);
+    const env = audioCtx.createGain();
+    env.gain.setValueAtTime(0, t + offset);
+    env.gain.linearRampToValueAtTime(chirpVol, t + offset + 0.003);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.04);
+    osc.connect(env);
+    env.connect(cricketGain);
+    osc.start(t + offset);
+    osc.stop(t + offset + 0.05);
+    autoCleanup(osc, env);
+  }
+}
+
+// birdsong — gentle melodic phrases, trills, or single calls
+function playBirdCall(cfg, dawnness) {
+  if (!audioCtx || !birdGain || cfg.vol === 0) return;
+  const t = audioCtx.currentTime;
+  const noteCount = cfg.notes[0] + Math.floor(Math.random() * (cfg.notes[1] - cfg.notes[0] + 1));
+  const baseFreq = cfg.freq * (0.92 + Math.random() * 0.16);
+  // FIX: volume scales only here (bus gain handles dawnness separately)
+  const callVol = cfg.vol * 0.012;
+
+  if (cfg.style === 'call') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    const bendDir = Math.random() < 0.5 ? 1.08 : 0.94;
+    osc.frequency.setValueAtTime(baseFreq, t);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * bendDir, t + 0.3);
+    const env = audioCtx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(callVol, t + 0.02);
+    env.gain.setValueAtTime(callVol * 0.8, t + 0.15);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    osc.connect(env);
+    env.connect(birdGain);
+    osc.start(t);
+    osc.stop(t + 0.4);
+    autoCleanup(osc, env);
+  } else if (cfg.style === 'trill') {
+    for (let i = 0; i < noteCount; i++) {
+      const offset = i * 0.08;
+      const freq = baseFreq * Math.pow(0.94, i);
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + offset);
+      const vib = audioCtx.createOscillator();
+      vib.frequency.value = 6;
+      const vibGain = audioCtx.createGain();
+      vibGain.gain.value = freq * 0.02;
+      vib.connect(vibGain);
+      vibGain.connect(osc.frequency);
+      vib.start(t + offset);
+      vib.stop(t + offset + 0.07);
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0, t + offset);
+      env.gain.linearRampToValueAtTime(callVol, t + offset + 0.005);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.06);
+      osc.connect(env);
+      env.connect(birdGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.07);
+      autoCleanup(osc, env, vib, vibGain);
+    }
+  } else {
+    // 'song' — melodic phrase
+    const intervals = [1, 1.125, 1.2, 1.33, 1.5];
+    for (let i = 0; i < noteCount; i++) {
+      const offset = i * (0.15 + Math.random() * 0.1);
+      const intv = intervals[Math.floor(Math.random() * intervals.length)];
+      const freq = baseFreq * (i === 0 ? 1 : intv) * (0.95 + Math.random() * 0.1);
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + offset);
+      const vib = audioCtx.createOscillator();
+      vib.frequency.value = 5;
+      const vibGain = audioCtx.createGain();
+      vibGain.gain.value = freq * 0.015;
+      vib.connect(vibGain);
+      vibGain.connect(osc.frequency);
+      vib.start(t + offset);
+      vib.stop(t + offset + 0.12);
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0, t + offset);
+      env.gain.linearRampToValueAtTime(callVol, t + offset + 0.008);
+      env.gain.setValueAtTime(callVol * 0.7, t + offset + 0.06);
+      env.gain.exponentialRampToValueAtTime(0.0001, t + offset + 0.12);
+      osc.connect(env);
+      env.connect(birdGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.13);
+      autoCleanup(osc, env, vib, vibGain);
+    }
+  }
+}
+
+// biome switch chime — descending arpeggio (richer than before)
+function playBiomeChime() {
+  if (!audioCtx) return;
+  const scale = BIOME_SCALES[currentLandIndex] || BIOME_SCALES[0];
+  const root = scale[Math.floor(Math.random() * 3)];
+  playNote(root + 12, 0.55, 0);
+  playNote(root + 7, 0.35, 0.35);
+  playNote(root, 0.2, 0.8); // add a low third note for depth
+  // rebuild biome ambient sounds
+  if (audioInitialized) initBiomeAmbient(currentLandIndex);
+}
+
+// ── UPDATE AUDIO — called every frame ──────────────────────────
+function updateAudio(elapsed, dt) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const land = LANDS[currentLandIndex];
+  const scale = BIOME_SCALES[currentLandIndex] || BIOME_SCALES[0];
+
+  const dayT = dayTime % 1;
+  const nightness = dayT > 0.7 ? Math.min(1, (dayT - 0.7) / 0.1)
+    : dayT < 0.15 ? Math.min(1, (0.15 - dayT) / 0.1) : 0;
+  const dawnness = dayT >= 0.13 && dayT <= 0.25 ? 1 :
+    dayT > 0.25 && dayT <= 0.55 ? 0.3 :
+    dayT > 0.55 && dayT <= 0.65 ? 0.5 : 0;
+
+  // ── THROTTLED CONTINUOUS PARAMS (~4x/sec) ──
+  audioThrottleAccum += dt;
+  if (audioThrottleAccum > 0.25) {
+    audioThrottleAccum = 0;
+
+    // pad: louder at night, tracks biome key
+    const padTarget = 0.02 + nightness * 0.04;
+    padGain.gain.linearRampToValueAtTime(padTarget, t + 0.5);
+    padOsc1.frequency.linearRampToValueAtTime(midiToFreq(scale[0] - 12), t + 2);
+    padOsc2.frequency.linearRampToValueAtTime(midiToFreq(scale[4] - 12), t + 2);
+    padOsc3.frequency.linearRampToValueAtTime(midiToFreq(scale[0] - 24), t + 2);
+    // pad filter opens at night for warmer tone
+    padFilterNode.frequency.linearRampToValueAtTime(280 + nightness * 180, t + 1);
+
+    // wind: scales with wind strength, goes silent at calm
+    const ws = wind.strength;
+    windMasterGain.gain.linearRampToValueAtTime(ws * 1.0, t + 0.5);
+    for (const wl of windLayers) {
+      wl.layerGain.gain.linearRampToValueAtTime(wl.baseGain * (0.3 + ws * 0.9), t + 0.5);
+      wl.lfoGain.gain.linearRampToValueAtTime(wl.baseLfoDepth * (0.3 + ws * 1.2), t + 0.5);
+    }
+
+    // water: dual-layer with proximity-based filter opening
+    let waterTarget = 0.012;
+    let waterLapTarget = 0.005;
+    let waterFilterTarget = 250;
+    if (walkMode) {
+      const distToEdge = Math.sqrt(walkPos.x * walkPos.x + walkPos.z * walkPos.z) / RADIUS;
+      const proximity = Math.max(0, distToEdge - 0.4) / 0.5; // 0 at center, 1 at edge
+      waterTarget = 0.008 + proximity * 0.06;
+      waterLapTarget = 0.003 + proximity * 0.025;
+      waterFilterTarget = 250 + proximity * 500; // filter opens near shore
+    }
+    waterGain.gain.linearRampToValueAtTime(waterTarget, t + 0.3);
+    waterFilter.frequency.linearRampToValueAtTime(waterFilterTarget, t + 0.5);
+    waterLapGain.gain.linearRampToValueAtTime(waterLapTarget, t + 0.3);
+
+    // rain: 3-layer, fades with weather state
+    if (rainMasterGain) {
+      const rainTarget = weatherType === 'rain' ? weatherFade * weatherIntensity * 0.1 : 0;
+      rainMasterGain.gain.linearRampToValueAtTime(rainTarget, t + 0.5);
+    }
+
+    // crickets: bus gain tracks nightness (not doubled with per-chirp scaling)
+    if (cricketGain) {
+      const cricketTarget = nightness > 0.1 ? nightness * 0.8 : 0;
+      cricketGain.gain.linearRampToValueAtTime(cricketTarget, t + 0.5);
+    }
+
+    // birds: bus gain tracks dawnness
+    if (birdGain) {
+      birdGain.gain.linearRampToValueAtTime(dawnness * 0.8, t + 0.5);
+    }
+  }
+
+  // ── SPARSE NOTES — the Minecraft / Skyrim magic ──
+  if (t > nextNoteTime) {
+    const velocity = 0.3 + Math.random() * 0.4;
+    const noteIdx = Math.floor(Math.random() * scale.length);
+    playNote(scale[noteIdx], velocity, 0);
+
+    // call and response (35% chance)
+    if (Math.random() < 0.35) {
+      const note2Idx = (noteIdx + 2 + Math.floor(Math.random() * 3)) % scale.length;
+      playNote(scale[note2Idx], velocity * 0.6, 1.5 + Math.random() * 2.5);
+    }
+
+    // occasional 3-note arpeggio for musical moments (10% chance)
+    if (Math.random() < 0.1) {
+      const arp1 = (noteIdx + 2) % scale.length;
+      const arp2 = (noteIdx + 4) % scale.length;
+      playNote(scale[arp1], velocity * 0.45, 0.4 + Math.random() * 0.3);
+      playNote(scale[arp2], velocity * 0.3, 0.9 + Math.random() * 0.4);
+    }
+
+    nextNoteTime = t + 5 + Math.random() * 13;
+    if (nightness > 0.5) nextNoteTime -= 3;
+  }
+
+  // ── CRICKET CHIRPS ──
+  if (t > nextCricketTime && nightness > 0.1) {
+    const cfg = CRICKET_CONFIGS[currentLandIndex];
+    if (cfg && cfg.vol > 0) {
+      playCricketChirp(cfg, nightness);
+      if (Math.random() < 0.4) {
+        const cfg2 = { ...cfg, freq: cfg.freq * (1.05 + Math.random() * 0.1) };
+        setTimeout(() => playCricketChirp(cfg2, nightness), 200 + Math.random() * 600);
+      }
+      const minI = cfg.interval[0], maxI = cfg.interval[1];
+      nextCricketTime = t + minI + Math.random() * (maxI - minI);
+      if (nightness > 0.7) nextCricketTime -= (maxI - minI) * 0.3;
+    } else {
+      nextCricketTime = t + 2;
+    }
+  }
+
+  // ── BIRDSONG ──
+  if (t > nextBirdTime && dawnness > 0) {
+    const bcfg = BIRD_CONFIGS[currentLandIndex];
+    if (bcfg && bcfg.vol > 0) {
+      playBirdCall(bcfg, dawnness);
+      if (Math.random() < 0.25) {
+        const bcfg2 = { ...bcfg, freq: bcfg.freq * (1.1 + Math.random() * 0.15) };
+        setTimeout(() => playBirdCall(bcfg2, dawnness), 800 + Math.random() * 2000);
+      }
+      const minI = bcfg.interval[0], maxI = bcfg.interval[1];
+      nextBirdTime = t + minI + Math.random() * (maxI - minI);
+      if (dawnness >= 1) nextBirdTime -= (maxI - minI) * 0.4;
+    } else {
+      nextBirdTime = t + 3;
+    }
+  }
+
+  // ── DAWN/DUSK CHORD ──
+  if (t > nextChordTime) {
+    const chordRoot = scale[0];
+    const chordFifth = scale[3] || scale[2];
+    playChord(chordRoot, chordFifth, 0.35 + nightness * 0.2);
+    nextChordTime = t + 25 + Math.random() * 35;
+  }
+
+  // ── BIOME AMBIENT EVENTS (drips, crystal pings, wind chimes, ice creaks) ──
+  if (t > nextBiomeEventTime) {
+    playBiomeEvent();
+    const cfg = BIOME_AMBIENT[currentLandIndex];
+    if (cfg && cfg.interval) {
+      const minI = cfg.interval[0], maxI = cfg.interval[1];
+      nextBiomeEventTime = t + minI + Math.random() * (maxI - minI);
+    } else {
+      nextBiomeEventTime = t + 10; // no events for continuous-only biomes
+    }
+  }
+
+  // ── DISTANT THUNDER — for rain biomes, rare and atmospheric ──
+  if (t > nextThunderTime && weatherType === 'rain' && weatherFade > 0.5) {
+    if (weatherIntensity > 0.3) {
+      playThunder();
+    }
+    // long random gap: 40-120 seconds
+    nextThunderTime = t + 40 + Math.random() * 80;
+  }
+
+  // ── WALK MODE FOOTSTEPS — surface-aware ──
+  if (walkMode && walkBobPhase > 0) {
+    const phase = Math.sin(walkBobPhase);
+    if (phase < 0 && lastFootstepPhase >= 0) {
+      const surface = getSurfaceType(land);
+      playFootstep(surface);
+      // ripple on water when walking near shore
+      const feetY = getTerrainHeight(walkPos.x / RADIUS, walkPos.z / RADIUS) * land.mountainHeight;
+      if (feetY < tideOffset + 0.08 && cachedWaterMesh && cachedWaterMesh.userData.uniforms && cachedWaterMesh.userData.uniforms.uRipples) {
+        const rip = cachedWaterMesh.userData.uniforms.uRipples.value[rippleIndex % 5];
+        rip.x = walkPos.x; rip.y = walkPos.z; rip.z = 0.5; rip.w = cachedWaterMesh.userData.uniforms.uTime.value;
+        rippleIndex++;
+      }
+    }
+    lastFootstepPhase = phase;
+  }
+}
+
+// init audio on first user interaction (browser autoplay policy)
+['mousedown', 'touchstart', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, () => initAudio(), { once: true, passive: true });
+});
 
 // ── ANIMATION LOOP ──────────────────────────────
 const clock = new THREE.Clock();
@@ -2729,15 +5051,25 @@ let lastTime = 0;
 
 function animate() {
   requestAnimationFrame(animate);
-  const elapsed = clock.getElapsedTime();
-  const dt = elapsed - lastTime;
-  lastTime = elapsed;
+  const realElapsed = clock.getElapsedTime();
+  const dt = realElapsed - lastTime;
+  lastTime = realElapsed;
+
+  // photo mode time freeze — world uses frozen time, camera still moves
+  const elapsed = photoTimeFrozen ? frozenElapsed : realElapsed;
+  const worldDt = photoTimeFrozen ? 0 : dt;
+
+  // ── AUDIO UPDATE ──
+  updateAudio(elapsed, worldDt);
 
   // ── WIND UPDATE ──
   updateWind(elapsed);
 
+  // ── TIDE UPDATE ──
+  updateTide(elapsed);
+
   // ── DAY/NIGHT CYCLE UPDATE ──
-  dayTime = (dayTime + CYCLE_SPEED * dt) % 1;
+  dayTime = (dayTime + CYCLE_SPEED * worldDt) % 1;
   const tod = getTOD(dayTime);
   updateDayNight(tod);
 
@@ -2745,29 +5077,27 @@ function animate() {
   const t = dayTime % 1;
   const nightFactor = t > 0.72 && t < 0.95 ? 1 : (t >= 0.63 && t <= 0.72 ? (t - 0.63) / 0.09 : (t >= 0.95 || t < 0.12 ? (t >= 0.95 ? 1 - (t - 0.95) / 0.05 : 1 - t / 0.12) : 0));
 
-  // stars visibility
-  starGroup.traverse(child => {
-    if (child.userData.isStars && child.material) {
-      child.material.opacity = nightFactor * 0.8;
-      child.rotation.y = elapsed * 0.003;
+  // stars visibility (starGroup has 1 child — the Points mesh)
+  {
+    const stars = starGroup.children[0];
+    if (stars && stars.material) {
+      stars.material.opacity = nightFactor * 0.8;
+      stars.rotation.y = elapsed * 0.003;
     }
-  });
+  }
 
-  // fireflies — glow and drift at night
-  fireflyGroup.traverse(child => {
-    if (child.userData.isFirefly) {
-      const p = child.userData.phase;
-      const spd = child.userData.speed;
-      child.position.x = child.userData.baseX + Math.sin(elapsed * spd * 0.7 + p) * child.userData.radius;
-      child.position.y = child.userData.baseY + Math.sin(elapsed * spd * 1.2 + p) * 0.15;
-      child.position.z = child.userData.baseZ + Math.cos(elapsed * spd * 0.5 + p * 1.3) * child.userData.radius;
-      // blink
-      const blink = Math.sin(elapsed * 2.5 + p) * 0.5 + 0.5;
-      child.material.opacity = nightFactor * blink * 0.9;
-      const s = 1 + blink * 0.4;
-      child.scale.setScalar(s);
-    }
-  });
+  // fireflies — glow and drift at night (flat group, no nested children)
+  for (let i = 0; i < fireflyGroup.children.length; i++) {
+    const child = fireflyGroup.children[i];
+    const p = child.userData.phase;
+    const spd = child.userData.speed;
+    child.position.x = child.userData.baseX + Math.sin(elapsed * spd * 0.7 + p) * child.userData.radius;
+    child.position.y = child.userData.baseY + Math.sin(elapsed * spd * 1.2 + p) * 0.15;
+    child.position.z = child.userData.baseZ + Math.cos(elapsed * spd * 0.5 + p * 1.3) * child.userData.radius;
+    const blink = Math.sin(elapsed * 2.5 + p) * 0.5 + 0.5;
+    child.material.opacity = nightFactor * blink * 0.9;
+    child.scale.setScalar(1 + blink * 0.4);
+  }
 
   // gentle breathing (disabled in walk mode — would cause motion sickness)
   if (!transitioning && !walkMode) {
@@ -2778,180 +5108,169 @@ function animate() {
     islandGroup.rotation.y = 0;
   }
 
-  // water Gerstner waves + foam + flowers + glow + leaves + lava
-  islandGroup.traverse(child => {
-    // Gerstner wave animation — vertices move in circular orbits
-    if (child.userData.isWaveWater) {
-      const pos = child.geometry.attributes.position;
-      const origX = child.userData.origX;
-      const origY = child.userData.origY;
-      const origZ = child.userData.origZ;
-      const waves = child.userData.waves;
-      const uniforms = child.userData.uniforms;
+  // ── WATER Gerstner waves (uses cachedWaterMesh directly) ──
+  if (cachedWaterMesh) {
+    const wm = cachedWaterMesh;
+    const pos = wm.geometry.attributes.position;
+    const origX = wm.userData.origX;
+    const origY = wm.userData.origY;
+    const origZ = wm.userData.origZ;
+    const waves = wm.userData.waves;
+    const uniforms = wm.userData.uniforms;
 
-      // update shader uniforms
-      uniforms.uTime.value = elapsed;
-      uniforms.uSunDir.value.copy(sunLight.position).normalize();
-      uniforms.uSunColor.value.copy(sunLight.color);
-      uniforms.uWindDir.value.copy(wind.dir);
-      uniforms.uWindStrength.value = wind.strength;
+    uniforms.uTime.value = elapsed;
+    uniforms.uSunDir.value.copy(sunLight.position).normalize();
+    uniforms.uSunColor.value.copy(sunLight.color);
+    uniforms.uWindDir.value.copy(wind.dir);
+    uniforms.uWindStrength.value = wind.strength;
 
-      // wind modulates wave amplitude and speed
-      const windAmpMod = 0.7 + wind.strength * 0.5;
-      const windSpeedMod = 0.8 + wind.strength * 0.4;
+    const windAmpMod = 0.85 + wind.strength * 0.25;
+    const windSpeedMod = 0.9 + wind.strength * 0.15;
+    const jacobian = wm.userData.jacobian;
+    const aNormals = wm.userData.analyticalNormals;
+    const wdx = wind.dir.x, wdy = wind.dir.y;
+    const cnt = pos.count;
+    const posArr = pos.array;
 
-      const jacobian = child.userData.jacobian;
+    for (let i = 0; i < cnt; i++) {
+      const ox = origX[i], oz = origZ[i];
+      const wd = Math.sqrt(ox * ox + oz * oz) / RADIUS;
+      const dampen = Math.max(0, Math.min(1, (wd - 0.85) * 4));
 
-      const aNormals = child.userData.analyticalNormals;
+      let dx = 0, dy = 0, dz = 0;
+      let ddx_dx = 0, ddz_dz = 0, ddx_dz = 0, ddz_dx = 0;
+      let nx = 0, nz = 0;
 
-      for (let i = 0; i < pos.count; i++) {
-        const ox = origX[i], oz = origZ[i];
-        const wd = Math.sqrt(ox * ox + oz * oz) / RADIUS;
-        // dampen near island
-        const dampen = Math.max(0, Math.min(1, (wd - 0.85) * 4));
+      for (let wi = 0; wi < waves.length; wi++) {
+        const w = waves[wi];
+        const alignment = w.dir[0] * wdx + w.dir[1] * wdy;
+        const amp = w.amp * windAmpMod * (0.85 + Math.max(0, alignment) * 0.25);
+        const spd = w.speed * windSpeedMod;
 
-        let dx = 0, dy = 0, dz = 0;
-        // Jacobian partial derivatives for foam computation
-        let ddx_dx = 0, ddz_dz = 0, ddx_dz = 0, ddz_dx = 0;
-        // analytical normal accumulation
-        let nx = 0, ny = 0, nz = 0;
+        const phase = w.freq * (w.dir[0] * ox + w.dir[1] * oz) - spd * elapsed;
+        const s = Math.sin(phase), c = Math.cos(phase);
+        dx += w.steep * amp * w.dir[0] * c;
+        dz += w.steep * amp * w.dir[1] * c;
+        dy += amp * s;
 
-        // sum Gerstner waves — wind modulates amplitude
-        for (const w of waves) {
-          // waves aligned with wind get amplitude boost
-          const alignment = w.dir[0] * wind.dir.x + w.dir[1] * wind.dir.y;
-          const alignBoost = 0.7 + Math.max(0, alignment) * 0.6;
-          const amp = w.amp * windAmpMod * alignBoost;
-          const spd = w.speed * windSpeedMod;
+        const qfa = w.steep * amp * w.freq;
+        const negS = qfa * s; // qfa * (-(-s)) = qfa * s
+        ddx_dx += w.dir[0] * w.dir[0] * negS;
+        ddz_dz += w.dir[1] * w.dir[1] * negS;
+        ddx_dz += w.dir[0] * w.dir[1] * negS;
+        ddz_dx += w.dir[1] * w.dir[0] * negS;
 
-          const dot = w.dir[0] * ox + w.dir[1] * oz;
-          const phase = w.freq * dot - spd * elapsed;
-          const s = Math.sin(phase), c = Math.cos(phase);
-          dx += w.steep * amp * w.dir[0] * c;
-          dz += w.steep * amp * w.dir[1] * c;
-          dy += amp * s;
-
-          // Jacobian: J = (1 - d(dx)/d(ox)) * (1 - d(dz)/d(oz)) - d(dx)/d(oz) * d(dz)/d(ox)
-          const qfa = w.steep * amp * w.freq;
-          ddx_dx -= w.dir[0] * w.dir[0] * qfa * (-s);
-          ddz_dz -= w.dir[1] * w.dir[1] * qfa * (-s);
-          ddx_dz -= w.dir[0] * w.dir[1] * qfa * (-s);
-          ddz_dx -= w.dir[1] * w.dir[0] * qfa * (-s);
-
-          // analytical Gerstner normal components
-          // N = (0,1,0) - sum( dir * freq * amp * cos(phase), 0, dir * freq * amp * cos(phase) )
-          // with steepness: N = (-dx_steep*freq*amp*cos, 1, -dz_steep*freq*amp*cos)
-          const wa = w.freq * amp * c;
-          nx -= w.dir[0] * wa;
-          nz -= w.dir[1] * wa;
-        }
-
-        pos.setX(i, ox + dx * dampen);
-        pos.setY(i, origY[i] + dy * dampen);
-        pos.setZ(i, oz + dz * dampen);
-
-        // Jacobian determinant — < 1 means wave breaking
-        const J = (1.0 + ddx_dx) * (1.0 + ddz_dz) - ddx_dz * ddz_dx;
-        jacobian[i] = J * dampen + (1.0 - dampen); // relax to 1 near island
-
-        // analytical normal — dampen blends toward flat (0,1,0) near island
-        const fnx = nx * dampen;
-        const fny = 1.0;
-        const fnz = nz * dampen;
-        const invLen = 1.0 / Math.sqrt(fnx * fnx + fny * fny + fnz * fnz);
-        aNormals[i * 3] = fnx * invLen;
-        aNormals[i * 3 + 1] = fny * invLen;
-        aNormals[i * 3 + 2] = fnz * invLen;
+        const wa = w.freq * amp * c;
+        nx -= w.dir[0] * wa;
+        nz -= w.dir[1] * wa;
       }
-      pos.needsUpdate = true;
-      child.geometry.attributes.aJacobian.needsUpdate = true;
-      child.geometry.attributes.aAnalyticalNormal.needsUpdate = true;
-    }
-    if (child.userData.isFlower) {
-      child.position.y = child.userData.baseY + Math.sin(elapsed * 2 + child.userData.phase) * 0.004;
-      // wind bending
-      const wf = getWindAt(child.position.x, child.position.z, elapsed);
-      const flex = child.userData.windFlex || 0;
-      let frx = (child.userData.baseRotX || 0) + wind.dir.y * wf * flex;
-      let frz = (child.userData.baseRotZ || 0) - wind.dir.x * wf * flex;
-      if (walkMode) {
-        const push = getVegetationPush(child.position.x, child.position.z, 0.35, 0.5);
-        if (push) { frx += push.rx; frz += push.rz; }
-      }
-      child.rotation.x = frx;
-      child.rotation.z = frz;
-    }
-    // wind on grass blades + walk mode parting
-    if (child.userData.isGrass) {
-      const wf = getWindAt(child.position.x, child.position.z, elapsed);
-      let rx = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
-      let rz = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
-      if (walkMode) {
-        const push = getVegetationPush(child.position.x, child.position.z, 0.4, 0.6);
-        if (push) { rx += push.rx; rz += push.rz; }
-      }
-      child.rotation.x = rx;
-      child.rotation.z = rz;
-    }
-    // wind on trees
-    if (child.userData.isTree) {
-      const wf = getWindAt(child.position.x, child.position.z, elapsed);
-      // trees sway slower, with secondary oscillation
-      const sway = wf * child.userData.windFlex;
-      const secondary = Math.sin(elapsed * 1.8 + child.userData.windPhase) * 0.008 * wind.strength;
-      child.rotation.x = child.userData.baseRotX + wind.dir.y * (sway + secondary);
-      child.rotation.z = child.userData.baseRotZ - wind.dir.x * (sway + secondary);
-    }
-    // wind on bushes + walk mode parting
-    if (child.userData.isBush) {
-      const wf = getWindAt(child.position.x, child.position.z, elapsed);
-      let brx = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
-      let brz = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
-      if (walkMode) {
-        const push = getVegetationPush(child.position.x, child.position.z, 0.5, 0.35);
-        if (push) { brx += push.rx; brz += push.rz; }
-      }
-      child.rotation.x = brx;
-      child.rotation.z = brz;
-    }
-    if (child.userData.isGlow && child.material) {
-      child.material.opacity = 0.45 + Math.sin(elapsed * 1.6 + child.userData.phase) * 0.3;
-      const s = 1 + Math.sin(elapsed * 2 + child.userData.phase) * 0.18;
-      child.scale.setScalar(s);
-    }
-    if (child.userData.isLeaf) {
-      // wind carries leaves in its direction
-      const windPush = wind.strength * 0.15;
-      child.position.y = child.userData.baseY + Math.sin(elapsed * child.userData.speed + child.userData.phase) * 0.12 - elapsed * 0.008;
-      child.position.x = child.userData.baseX + Math.sin(elapsed * 0.35 + child.userData.phase) * 0.25 + wind.dir.x * windPush * Math.sin(elapsed * 0.5 + child.userData.phase);
-      child.position.z += wind.dir.y * windPush * 0.002;
-      child.rotation.x += 0.006 + wind.strength * 0.003;
-      child.rotation.z += 0.004 + wind.strength * 0.002;
-      if (child.position.y < 0) child.position.y = child.userData.baseY + 2.5;
-    }
-    if (child.userData.isLava && child.material) {
-      child.material.opacity = 0.35 + Math.sin(elapsed * 3.5 + child.userData.phase) * 0.3;
-    }
-  });
 
-  // butterflies — wind pushes their orbit
-  particleGroup.traverse(child => {
-    if (child.userData.isButterfly) {
-      const t = elapsed * child.userData.speed + child.userData.phase;
-      const windDrift = wind.strength * 0.12;
-      child.position.x = child.userData.centerX + Math.sin(t * 0.7) * child.userData.radius + wind.dir.x * windDrift * Math.sin(elapsed * 0.3 + child.userData.phase);
-      child.position.z = child.userData.centerZ + Math.cos(t * 0.5) * child.userData.radius + wind.dir.y * windDrift * Math.sin(elapsed * 0.4 + child.userData.phase);
-      child.position.y = child.userData.baseY + Math.sin(t * 1.5) * 0.2;
-      // wing flap
-      if (child.children[0]) child.children[0].rotation.y = Math.sin(elapsed * 8 + child.userData.phase) * 0.6;
-      if (child.children[1]) child.children[1].rotation.y = -Math.sin(elapsed * 8 + child.userData.phase) * 0.6;
-      child.lookAt(
-        child.position.x + Math.cos(t * 0.7) * 0.5,
-        child.position.y,
-        child.position.z - Math.sin(t * 0.5) * 0.5,
-      );
+      const i3 = i * 3;
+      posArr[i3] = ox + dx * dampen;
+      posArr[i3 + 1] = origY[i] + dy * dampen + tideOffset;
+      posArr[i3 + 2] = oz + dz * dampen;
+
+      const J = (1.0 + ddx_dx) * (1.0 + ddz_dz) - ddx_dz * ddz_dx;
+      jacobian[i] = J * dampen + (1.0 - dampen);
+
+      const fnx = nx * dampen;
+      const fnz = nz * dampen;
+      const invLen = 1.0 / Math.sqrt(fnx * fnx + 1.0 + fnz * fnz);
+      aNormals[i3] = fnx * invLen;
+      aNormals[i3 + 1] = invLen;
+      aNormals[i3 + 2] = fnz * invLen;
     }
-  });
+    pos.needsUpdate = true;
+    wm.geometry.attributes.aJacobian.needsUpdate = true;
+    wm.geometry.attributes.aAnalyticalNormal.needsUpdate = true;
+  }
+
+  // ── VEGETATION WIND (cached arrays — no traverse) ──
+  for (let i = 0; i < _cachedFlowers.length; i++) {
+    const child = _cachedFlowers[i];
+    child.position.y = child.userData.baseY + Math.sin(elapsed * 2 + child.userData.phase) * 0.004;
+    const wf = getWindAt(child.position.x, child.position.z, elapsed);
+    const flex = child.userData.windFlex || 0;
+    let frx = (child.userData.baseRotX || 0) + wind.dir.y * wf * flex;
+    let frz = (child.userData.baseRotZ || 0) - wind.dir.x * wf * flex;
+    if (walkMode) {
+      const push = getVegetationPush(child.position.x, child.position.z, 0.35, 0.5);
+      if (push) { frx += push.rx; frz += push.rz; }
+    }
+    child.rotation.x = frx;
+    child.rotation.z = frz;
+  }
+  for (let i = 0; i < _cachedGrass.length; i++) {
+    const child = _cachedGrass[i];
+    const wf = getWindAt(child.position.x, child.position.z, elapsed);
+    let rx = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
+    let rz = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
+    if (walkMode) {
+      const push = getVegetationPush(child.position.x, child.position.z, 0.4, 0.6);
+      if (push) { rx += push.rx; rz += push.rz; }
+    }
+    child.rotation.x = rx;
+    child.rotation.z = rz;
+  }
+  for (let i = 0; i < _cachedTrees.length; i++) {
+    const child = _cachedTrees[i];
+    const wf = getWindAt(child.position.x, child.position.z, elapsed);
+    const sway = wf * child.userData.windFlex;
+    const secondary = Math.sin(elapsed * 1.8 + child.userData.windPhase) * 0.008 * wind.strength;
+    child.rotation.x = child.userData.baseRotX + wind.dir.y * (sway + secondary);
+    child.rotation.z = child.userData.baseRotZ - wind.dir.x * (sway + secondary);
+  }
+  for (let i = 0; i < _cachedBushes.length; i++) {
+    const child = _cachedBushes[i];
+    const wf = getWindAt(child.position.x, child.position.z, elapsed);
+    let brx = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
+    let brz = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
+    if (walkMode) {
+      const push = getVegetationPush(child.position.x, child.position.z, 0.5, 0.35);
+      if (push) { brx += push.rx; brz += push.rz; }
+    }
+    child.rotation.x = brx;
+    child.rotation.z = brz;
+  }
+  for (let i = 0; i < _cachedGlow.length; i++) {
+    const child = _cachedGlow[i];
+    child.material.opacity = 0.45 + Math.sin(elapsed * 1.6 + child.userData.phase) * 0.3;
+    const s = 1 + Math.sin(elapsed * 2 + child.userData.phase) * 0.18;
+    child.scale.setScalar(s);
+  }
+  for (let i = 0; i < _cachedLeaves.length; i++) {
+    const child = _cachedLeaves[i];
+    const windPush = wind.strength * 0.15;
+    child.position.y = child.userData.baseY + Math.sin(elapsed * child.userData.speed + child.userData.phase) * 0.12 - elapsed * 0.008;
+    child.position.x = child.userData.baseX + Math.sin(elapsed * 0.35 + child.userData.phase) * 0.25 + wind.dir.x * windPush * Math.sin(elapsed * 0.5 + child.userData.phase);
+    child.position.z += wind.dir.y * windPush * 0.002;
+    child.rotation.x += 0.006 + wind.strength * 0.003;
+    child.rotation.z += 0.004 + wind.strength * 0.002;
+    if (child.position.y < 0) child.position.y = child.userData.baseY + 2.5;
+  }
+  for (let i = 0; i < _cachedLava.length; i++) {
+    const child = _cachedLava[i];
+    child.material.opacity = 0.35 + Math.sin(elapsed * 3.5 + child.userData.phase) * 0.3;
+  }
+
+  // butterflies — wind pushes their orbit (flat group of butterfly Groups)
+  for (let bi = 0; bi < particleGroup.children.length; bi++) {
+    const child = particleGroup.children[bi];
+    if (!child.userData.isButterfly) continue;
+    const t = elapsed * child.userData.speed + child.userData.phase;
+    const windDrift = wind.strength * 0.12;
+    child.position.x = child.userData.centerX + Math.sin(t * 0.7) * child.userData.radius + wind.dir.x * windDrift * Math.sin(elapsed * 0.3 + child.userData.phase);
+    child.position.z = child.userData.centerZ + Math.cos(t * 0.5) * child.userData.radius + wind.dir.y * windDrift * Math.sin(elapsed * 0.4 + child.userData.phase);
+    child.position.y = child.userData.baseY + Math.sin(t * 1.5) * 0.2;
+    const wingFlap = Math.sin(elapsed * 8 + child.userData.phase) * 0.6;
+    if (child.children[0]) child.children[0].rotation.y = wingFlap;
+    if (child.children[1]) child.children[1].rotation.y = -wingFlap;
+    child.lookAt(
+      child.position.x + Math.cos(t * 0.7) * 0.5,
+      child.position.y,
+      child.position.z - Math.sin(t * 0.5) * 0.5,
+    );
+  }
 
   // drift clouds — wind-driven
   cloudGroup.children.forEach(cloud => {
@@ -2963,15 +5282,21 @@ function animate() {
     if (cloud.position.x < -18) cloud.position.x = 18;
   });
 
-  // ── ANIME SUN + GOD RAY UPDATE ──
+  // ── FOG BANKS UPDATE ──
+  updateFogBanks(elapsed, dt);
+
+  // ── WEATHER UPDATE ──
+  updateWeather(dt);
+
+  // ── 3D SUN + GOD RAY UPDATE ──
   {
-    const sunPos3 = sunLight.position.clone();
-    // position sun billboard and face camera
-    sunBillboard.position.copy(sunPos3).multiplyScalar(3);
-    sunBillboard.quaternion.copy(camera.quaternion); // always face camera
+    // position sun group (no allocation — copy + multiply in place)
+    sunGroup.position.copy(sunLight.position).multiplyScalar(3);
+    // face the sun toward the camera
+    sunGroup.quaternion.copy(camera.quaternion);
 
     // project sun to screen space
-    const sunNDC = sunPos3.clone().project(camera);
+    const sunNDC = _cinTargetPos.copy(sunLight.position).project(camera);
     const sunScreenX = sunNDC.x * 0.5 + 0.5;
     const sunScreenY = sunNDC.y * 0.5 + 0.5;
     godRayPass.uniforms.uSunScreenPos.value.set(sunScreenX, sunScreenY);
@@ -2995,26 +5320,79 @@ function animate() {
     // fade when sun is far off screen
     const offScreen = Math.max(Math.abs(sunScreenX - 0.5), Math.abs(sunScreenY - 0.5));
     if (offScreen > 0.6) godRayIntensity *= Math.max(0, 1 - (offScreen - 0.6) / 0.4);
-    godRayPass.uniforms.uIntensity.value = godRayIntensity * 0.6;
+    godRayPass.uniforms.uIntensity.value = godRayIntensity * 0.8;
     godRayPass.uniforms.uSunColor.value.set(sunLight.color.r, sunLight.color.g, sunLight.color.b);
 
     // sun shader uniforms
     const sunAboveHorizon = sunLight.position.y > 0 ? 1.0 : 0.0;
-    sunShaderMat.uniforms.uTime.value = elapsed;
-    sunShaderMat.uniforms.uOpacity.value = sunAboveHorizon * (0.7 + godRayIntensity * 0.3);
-    sunShaderMat.uniforms.uColor.value.copy(sunLight.color);
-    // rim color: warmer/more orange, especially at golden hour
-    const rimCol = sunShaderMat.uniforms.uRimColor.value;
-    rimCol.copy(sunLight.color);
-    rimCol.r = Math.min(1.0, rimCol.r * 1.1);
-    rimCol.g *= 0.8;
-    rimCol.b *= 0.5;
+    // smooth opacity — ease in/out near horizon
+    const horizonT = Math.max(0, Math.min(1, sunLight.position.y / 3));
+    sunOpacity = horizonT * (0.7 + godRayIntensity * 0.3);
+
+    // update core opacity
+    sunCoreMat.opacity = sunOpacity;
+
+    // update glow layers — each fades with sunOpacity, pulsing slightly offset
+    for (let g = 0; g < sunGlowLayers.length; g++) {
+      const layer = sunGlowLayers[g];
+      const layerPulse = 1 + Math.sin(elapsed * (1.2 + g * 0.3) + g * 1.5) * 0.08;
+      layer.material.opacity = layer.userData.baseOpacity * sunOpacity * layerPulse;
+      layer.material.color.copy(sunLight.color);
+      // outer layers more golden
+      if (g > 1) {
+        layer.material.color.r = Math.min(1, layer.material.color.r * 1.05);
+        layer.material.color.g *= 0.92;
+      }
+      // gentle independent rotation for shimmer
+      layer.rotation.y = elapsed * (0.02 + g * 0.01);
+      layer.rotation.x = Math.sin(elapsed * 0.15 + g) * 0.05;
+    }
+
+    // animate ray spikes — layered rotation + per-ray pulsing
+    const pulse = 1 + Math.sin(elapsed * 1.5) * 0.06;
+    for (const pivot of sunRays) {
+      const ud = pivot.userData;
+      const ba = ud.baseAngle;
+      pivot.rotation.z = ba + elapsed * ud.rotSpeed;
+
+      const ray = pivot.children[0];
+      const lenPulse = ud.isTertiary
+        ? 0.7 + Math.sin(elapsed * ud.pulseFreq + ba * 7) * ud.pulseAmp
+        : pulse + Math.sin(elapsed * ud.pulseFreq + ba * 3) * ud.pulseAmp;
+      ray.scale.y = lenPulse;
+      ray.scale.x = 1 + Math.sin(elapsed * 1.8 + ba * 2) * 0.1;
+      ray.material.opacity = sunOpacity * ud.baseAlpha * (0.8 + lenPulse * 0.2);
+    }
+
+    // sparkle particles — orbit and twinkle
+    sparkleGroup.children.forEach(sparkle => {
+      const ud = sparkle.userData;
+      ud.orbitAngle += ud.orbitSpeed * dt;
+      sparkle.position.x = Math.cos(ud.orbitAngle) * ud.orbitRadius;
+      sparkle.position.y = Math.sin(ud.orbitAngle) * ud.orbitRadius;
+      // twinkle
+      const twinkle = Math.sin(elapsed * 4 + ud.twinklePhase) * 0.5 + 0.5;
+      sparkle.material.opacity = sunOpacity * twinkle * 0.7;
+      const s = 0.6 + twinkle * 0.6;
+      sparkle.scale.setScalar(s);
+    });
+
+    // gentle core rotation for liveliness
+    sunCore.rotation.y += dt * 0.12;
+    sunCore.rotation.x = Math.sin(elapsed * 0.25) * 0.08;
+
+    // breathing scale — whole sun
+    const breathe = 1 + Math.sin(elapsed * 1.0) * 0.035 + Math.sin(elapsed * 2.3) * 0.015;
+    sunGroup.scale.setScalar(1.8 * breathe);
   }
 
   // ── WALK MODE UPDATE ──
   if (walkMode) {
     updateWalkMode(elapsed, dt);
   }
+
+  // ── ACHIEVEMENTS ──
+  updateAchievements(elapsed, worldDt);
 
   // ── CINEMATIC CAMERA UPDATE ──
   if (!transitioning && !walkMode) {
@@ -3062,6 +5440,253 @@ screenshotBtn.addEventListener('click', () => {
   // success animation
   screenshotBtn.classList.add('success');
   setTimeout(() => screenshotBtn.classList.remove('success'), 1200);
+  // achievements
+  achState.screenshotCount++;
+  unlockAchievement('photographer');
+  if (achState.screenshotCount >= 5) unlockAchievement('shutterbug');
+});
+
+// ── ACHIEVEMENT SYSTEM ─────────────────────────
+const ACHIEVEMENTS = [
+  { id: 'first_steps',     icon: '\u{1F9ED}', title: 'First Steps',         desc: 'Walked the island on foot' },
+  { id: 'world_hopper',    icon: '\u{1F30D}', title: 'World Hopper',        desc: 'Visited 3 different biomes' },
+  { id: 'realm_walker',    icon: '\u{2728}',  title: 'Realm Walker',        desc: 'Visited every biome' },
+  { id: 'golden_hour',     icon: '\u{1F305}', title: 'Golden Hour',         desc: 'Watched a sunset' },
+  { id: 'early_riser',     icon: '\u{1F304}', title: 'Early Riser',         desc: 'Watched a sunrise' },
+  { id: 'night_owl',       icon: '\u{1F319}', title: 'Night Owl',           desc: 'Wandered the island at night' },
+  { id: 'photographer',    icon: '\u{1F4F8}', title: 'Photographer',        desc: 'Took a screenshot' },
+  { id: 'shutterbug',      icon: '\u{1F3AC}', title: 'Shutterbug',          desc: 'Took 5 screenshots' },
+  { id: 'eye_for_detail',  icon: '\u{1F3A8}', title: 'Eye for Detail',      desc: 'Used photo mode' },
+  { id: 'time_lord',       icon: '\u{23F8}\u{FE0F}', title: 'Time Lord',    desc: 'Froze time in photo mode' },
+  { id: 'edge_walker',     icon: '\u{1FA82}', title: 'Edge Walker',         desc: 'Walked to the cliff edge' },
+  { id: 'island_resident', icon: '\u{1F3E0}', title: 'Island Resident',     desc: 'Spent 5 minutes on one biome' },
+  { id: 'the_long_stay',   icon: '\u{1F6CB}\u{FE0F}', title: 'The Long Stay', desc: 'Spent 10 minutes total' },
+  { id: 'rain_dancer',     icon: '\u{1F327}\u{FE0F}', title: 'Rain Dancer',  desc: 'Walked in the rain' },
+  { id: 'snow_treader',    icon: '\u{2744}\u{FE0F}',  title: 'Snow Treader', desc: 'Walked in the snow' },
+  { id: 'peak_climber',    icon: '\u{26F0}\u{FE0F}',  title: 'Peak Climber', desc: 'Reached the highest point' },
+  { id: 'contemplator',    icon: '\u{1F9D8}', title: 'Contemplator',        desc: 'Stood still for 30 seconds' },
+  { id: 'marathon',        icon: '\u{1F3C3}', title: 'Marathon',             desc: 'Ran across the entire island' },
+  { id: 'tour_complete',   icon: '\u{1F3AC}', title: 'Director\'s Cut',     desc: 'Completed a cinematic tour' },
+  { id: 'fog_walker',      icon: '\u{1F32B}\u{FE0F}', title: 'Fog Walker',  desc: 'Walked through fog banks' },
+];
+
+const achState = {
+  unlocked: new Set(),
+  biomesVisited: new Set(),
+  screenshotCount: 0,
+  biomeTime: 0,
+  totalTime: 0,
+  walkStillTime: 0,
+  walkDist: 0,
+  lastWalkPos: null,
+  peakReached: false,
+  _spatialAcc: 0,
+};
+achState.biomesVisited.add(0); // initial biome
+let achToastQueue = [];
+let achToastActive = false;
+
+const achToast = document.getElementById('achievement-toast');
+const achIcon = achToast.querySelector('.ach-icon');
+const achTitle = achToast.querySelector('.ach-title');
+const achDesc = achToast.querySelector('.ach-desc');
+const achProgressBar = achToast.querySelector('.ach-progress-bar');
+
+function unlockAchievement(id) {
+  if (achState.unlocked.has(id)) return;
+  achState.unlocked.add(id);
+  const ach = ACHIEVEMENTS.find(a => a.id === id);
+  if (!ach) return;
+  achToastQueue.push(ach);
+  if (!achToastActive) showNextAchToast();
+}
+
+function showNextAchToast() {
+  if (achToastQueue.length === 0) { achToastActive = false; return; }
+  // defer toasts while UI is hidden in photo mode
+  if (photoUIHidden) { setTimeout(showNextAchToast, 1000); return; }
+  achToastActive = true;
+  const ach = achToastQueue.shift();
+  achIcon.textContent = ach.icon;
+  achTitle.textContent = ach.title;
+  achDesc.textContent = ach.desc;
+  const pct = Math.round((achState.unlocked.size / ACHIEVEMENTS.length) * 100);
+  achProgressBar.style.width = pct + '%';
+  achToast.classList.add('visible');
+  setTimeout(() => {
+    achToast.classList.remove('visible');
+    setTimeout(showNextAchToast, 500);
+  }, 3500);
+}
+
+function updateAchievements(elapsed, dt) {
+  // track total time always
+  achState.totalTime += dt;
+  achState.biomeTime += dt;
+
+  if (achState.totalTime > 600) unlockAchievement('the_long_stay');
+  if (achState.biomeTime > 300) unlockAchievement('island_resident');
+
+  if (!walkMode) return;
+
+  // walk distance tracking
+  if (achState.lastWalkPos) {
+    const dx = walkPos.x - achState.lastWalkPos.x;
+    const dz = walkPos.z - achState.lastWalkPos.z;
+    const stepDist = Math.sqrt(dx * dx + dz * dz);
+    if (stepDist > 0.001) {
+      achState.walkDist += stepDist;
+      achState.walkStillTime = 0;
+    } else {
+      achState.walkStillTime += dt;
+    }
+    achState.lastWalkPos.set(walkPos.x, walkPos.y, walkPos.z);
+  } else {
+    achState.lastWalkPos = walkPos.clone();
+  }
+
+  // contemplator — stand still 30s in walk mode
+  if (achState.walkStillTime > 30) unlockAchievement('contemplator');
+
+  // marathon — walk 8 units total (island diameter is ~5.6)
+  if (achState.walkDist > 8) unlockAchievement('marathon');
+
+  // throttle spatial checks to ~2x/sec
+  achState._spatialAcc = (achState._spatialAcc || 0) + dt;
+  if (achState._spatialAcc < 0.5) return;
+  achState._spatialAcc = 0;
+
+  // edge walker — near cliff edge
+  const wd = Math.sqrt(walkPos.x * walkPos.x + walkPos.z * walkPos.z) / RADIUS;
+  if (wd > 0.85) unlockAchievement('edge_walker');
+
+  // peak climber — at highest terrain point
+  const land = LANDS[currentLandIndex];
+  const terrainH = getTerrainHeight(walkPos.x, walkPos.z, land);
+  if (terrainH > land.mountainHeight * 0.85) unlockAchievement('peak_climber');
+
+  // night owl — walking at night
+  const t = dayTime % 1;
+  const isNight = t > 0.72 || t < 0.12;
+  if (isNight) unlockAchievement('night_owl');
+
+  // golden hour / sunrise / sunset detection
+  if (t >= 0.55 && t <= 0.68) unlockAchievement('golden_hour');
+  if (t >= 0.15 && t <= 0.22) unlockAchievement('early_riser');
+
+  // rain/snow walker
+  if (land.weather === 'rain' && land.weatherIntensity > 0) unlockAchievement('rain_dancer');
+  if (land.weather === 'snow' && land.weatherIntensity > 0) unlockAchievement('snow_treader');
+
+  // fog walker — check if near any fog bank
+  if (fogBankGroup.children.length > 0) {
+    for (const fb of fogBankGroup.children) {
+      const fdx = walkPos.x - fb.position.x;
+      const fdz = walkPos.z - fb.position.z;
+      if (Math.sqrt(fdx * fdx + fdz * fdz) < 1.5) {
+        unlockAchievement('fog_walker');
+        break;
+      }
+    }
+  }
+}
+
+// ── TIDE SYSTEM ────────────────────────────────
+const TIDE_PERIOD = 60; // full cycle in seconds
+const TIDE_AMPLITUDE = 0.12; // max height change
+let tideOffset = 0;
+
+function updateTide(elapsed) {
+  tideOffset = Math.sin(elapsed * Math.PI * 2 / TIDE_PERIOD) * TIDE_AMPLITUDE;
+}
+
+// ── PHOTO MODE ─────────────────────────────────
+// photoMode, photoTimeFrozen, photoUIHidden declared earlier (before updateSceneColors init)
+let frozenElapsed = 0;
+
+const photoBtn = document.getElementById('photo-btn');
+const photoPanel = document.getElementById('photo-panel');
+
+// slider configs: [inputId, uniformPath, labelId, format, scale]
+const photoSliders = [
+  { id: 'photo-vignette', label: 'photo-vig-val', key: 'uVignetteStrength', scale: 0.01, suffix: '%', decimals: 0 },
+  { id: 'photo-saturation', label: 'photo-sat-val', key: 'uSaturation', scale: 0.01, suffix: '%', decimals: 0 },
+  { id: 'photo-contrast', label: 'photo-con-val', key: 'uContrast', scale: 0.01, suffix: '%', decimals: 0 },
+  { id: 'photo-temperature', label: 'photo-temp-val', key: 'uTemperature', scale: 0.01, suffix: '', decimals: 0 },
+  { id: 'photo-grain', label: 'photo-grain-val', key: 'uGrain', scale: 0.01, suffix: '%', decimals: 0 },
+];
+
+// bloom slider is special — controls UnrealBloomPass
+const bloomSlider = document.getElementById('photo-bloom');
+const bloomLabel = document.getElementById('photo-bloom-val');
+
+for (const s of photoSliders) {
+  const input = document.getElementById(s.id);
+  const label = document.getElementById(s.label);
+  input.addEventListener('input', () => {
+    const v = parseFloat(input.value);
+    colorGradePass.uniforms[s.key].value = v * s.scale;
+    label.textContent = Math.round(v) + s.suffix;
+  });
+}
+
+bloomSlider.addEventListener('input', () => {
+  const v = parseFloat(bloomSlider.value);
+  bloomPass.strength = v * 0.01;
+  bloomLabel.textContent = Math.round(v) + '%';
+});
+
+// freeze time toggle
+const freezeToggle = document.getElementById('photo-freeze-toggle');
+const freezeSwitch = document.getElementById('photo-freeze-switch');
+freezeToggle.addEventListener('click', () => {
+  photoTimeFrozen = !photoTimeFrozen;
+  freezeSwitch.classList.toggle('on', photoTimeFrozen);
+  if (photoTimeFrozen) {
+    frozenElapsed = clock.getElapsedTime();
+    unlockAchievement('time_lord');
+  }
+});
+
+// hide UI toggle
+const hideUIToggle = document.getElementById('photo-hide-ui-toggle');
+const hideUISwitch = document.getElementById('photo-hide-ui-switch');
+const HIDEABLE_UI_SELECTOR = '#ui, #screenshot-btn, #tour-btn, #walk-btn, #photo-btn, #cinematic-indicator, #walk-hint';
+hideUIToggle.addEventListener('click', () => {
+  photoUIHidden = !photoUIHidden;
+  hideUISwitch.classList.toggle('on', photoUIHidden);
+  document.querySelectorAll(HIDEABLE_UI_SELECTOR)
+    .forEach(el => { el.style.opacity = photoUIHidden ? '0' : ''; });
+  // keep photo panel visible
+});
+
+function togglePhotoMode() {
+  photoMode = !photoMode;
+  photoBtn.classList.toggle('active', photoMode);
+  photoPanel.classList.toggle('visible', photoMode);
+
+  if (photoMode) unlockAchievement('eye_for_detail');
+
+  if (!photoMode) {
+    // reset to defaults
+    photoTimeFrozen = false;
+    freezeSwitch.classList.remove('on');
+    if (photoUIHidden) {
+      photoUIHidden = false;
+      hideUISwitch.classList.remove('on');
+      document.querySelectorAll(HIDEABLE_UI_SELECTOR)
+        .forEach(el => { el.style.opacity = ''; });
+    }
+  }
+}
+
+photoBtn.addEventListener('click', togglePhotoMode);
+
+// P key to toggle photo mode
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'p' || e.key === 'P') {
+    if (!walkMode) togglePhotoMode();
+  }
 });
 
 // ── CINEMATIC CAMERA ────────────────────────────
@@ -3089,8 +5714,22 @@ function resetIdleTimer() {
   window.addEventListener(evt, resetIdleTimer, { passive: true });
 });
 
+// ── WELCOME OVERLAY ────────────────────────────
+const welcomeOverlay = document.getElementById('welcome-overlay');
+let welcomeDismissed = false;
+function dismissWelcome() {
+  if (welcomeDismissed) return;
+  welcomeDismissed = true;
+  welcomeOverlay.classList.add('hidden');
+  setTimeout(() => { welcomeOverlay.style.display = 'none'; }, 1200);
+}
+['mousedown', 'wheel', 'touchstart', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, dismissWelcome, { once: true, passive: true });
+});
+
 function enterCinematicMode() {
   if (cinematicMode) return;
+  if (!welcomeDismissed) dismissWelcome();
   cinematicMode = true;
   cinematicBlend = 0;
   savedCameraState.pos.copy(camera.position);
@@ -3193,8 +5832,14 @@ function enterWalkMode() {
   camera.fov = 65;
   camera.updateProjectionMatrix();
 
-  // request pointer lock for mouse look
-  renderer.domElement.requestPointerLock();
+  // pointer lock for desktop, touch UI for mobile
+  if (isTouchDevice) {
+    showTouchWalkUI();
+  } else {
+    renderer.domElement.requestPointerLock();
+  }
+
+  unlockAchievement('first_steps');
 }
 
 function exitWalkMode() {
@@ -3211,8 +5856,9 @@ function exitWalkMode() {
   camera.position.set(8, 6, 8);
   controls.target.set(0, 0.8, 0);
 
-  // release pointer lock
+  // release pointer lock / hide touch UI
   if (document.pointerLockElement) document.exitPointerLock();
+  hideTouchWalkUI();
 
   // reset idle timer
   lastInteractionTime = clock.getElapsedTime();
@@ -3276,6 +5922,141 @@ document.addEventListener('pointerlockchange', () => {
   }
 });
 
+// ── MOBILE TOUCH CONTROLS ───────────────────────
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+// touch-adaptive welcome text
+if (isTouchDevice) {
+  const welcomeDismissEl = document.getElementById('welcome-dismiss');
+  if (welcomeDismissEl) welcomeDismissEl.textContent = 'tap anywhere to begin';
+  // update welcome hints for touch
+  const hints = document.querySelectorAll('.welcome-hint-row');
+  hints.forEach(row => {
+    const key = row.querySelector('.welcome-hint-key');
+    if (!key) return;
+    const keyText = key.textContent.trim();
+    if (keyText === 'Drag') key.textContent = 'Touch';
+    else if (keyText === 'Scroll') { key.textContent = 'Pinch'; row.lastChild.textContent = ' Zoom in & out'; }
+    else if (keyText === 'F') { key.textContent = 'Tap'; row.lastChild.textContent = ' Walk button to explore'; }
+    else if (keyText === 'P') { key.textContent = 'Tap'; row.lastChild.textContent = ' Photo button for controls'; }
+  });
+}
+
+// virtual joystick
+const touchJoystick = document.getElementById('touch-joystick');
+const touchJoystickKnob = document.getElementById('touch-joystick-knob');
+const touchLookZone = document.getElementById('touch-look-zone');
+const touchWalkExit = document.getElementById('touch-walk-exit');
+
+let joystickActive = false;
+let joystickTouchId = null;
+let joystickCenterX = 0;
+let joystickCenterY = 0;
+const JOYSTICK_MAX_R = 40; // max knob displacement in px
+let touchJoyX = 0; // -1 to 1
+let touchJoyY = 0; // -1 to 1
+
+let lookTouchId = null;
+let lookLastX = 0;
+let lookLastY = 0;
+
+function showTouchWalkUI() {
+  if (!isTouchDevice) return;
+  touchJoystick.style.display = 'block';
+  touchLookZone.style.display = 'block';
+  touchWalkExit.style.display = 'block';
+  walkCrosshair.classList.remove('visible'); // no crosshair on mobile
+  walkHint.classList.remove('visible'); // joystick is self-explanatory
+}
+
+function hideTouchWalkUI() {
+  touchJoystick.style.display = 'none';
+  touchLookZone.style.display = 'none';
+  touchWalkExit.style.display = 'none';
+  joystickActive = false;
+  joystickTouchId = null;
+  lookTouchId = null;
+  touchJoyX = 0;
+  touchJoyY = 0;
+  touchJoystickKnob.style.transform = 'translate(-50%, -50%)';
+  touchJoystickKnob.classList.remove('active');
+}
+
+// joystick touch handlers
+touchJoystick.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  joystickTouchId = t.identifier;
+  joystickActive = true;
+  const rect = touchJoystick.getBoundingClientRect();
+  joystickCenterX = rect.left + rect.width / 2;
+  joystickCenterY = rect.top + rect.height / 2;
+  touchJoystickKnob.classList.add('active');
+}, { passive: false });
+
+touchJoystick.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const t = e.changedTouches[i];
+    if (t.identifier !== joystickTouchId) continue;
+    let dx = t.clientX - joystickCenterX;
+    let dy = t.clientY - joystickCenterY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > JOYSTICK_MAX_R) {
+      dx = (dx / dist) * JOYSTICK_MAX_R;
+      dy = (dy / dist) * JOYSTICK_MAX_R;
+    }
+    touchJoyX = dx / JOYSTICK_MAX_R;
+    touchJoyY = dy / JOYSTICK_MAX_R;
+    touchJoystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  }
+}, { passive: false });
+
+function resetJoystick() {
+  joystickActive = false;
+  joystickTouchId = null;
+  touchJoyX = 0;
+  touchJoyY = 0;
+  touchJoystickKnob.style.transform = 'translate(-50%, -50%)';
+  touchJoystickKnob.classList.remove('active');
+}
+touchJoystick.addEventListener('touchend', resetJoystick);
+touchJoystick.addEventListener('touchcancel', resetJoystick);
+
+// look zone touch handlers (right half of screen)
+touchLookZone.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  lookTouchId = t.identifier;
+  lookLastX = t.clientX;
+  lookLastY = t.clientY;
+}, { passive: false });
+
+touchLookZone.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const t = e.changedTouches[i];
+    if (t.identifier !== lookTouchId) continue;
+    const dx = t.clientX - lookLastX;
+    const dy = t.clientY - lookLastY;
+    walkYaw -= dx * 0.004;
+    walkPitch -= dy * 0.004;
+    walkPitch = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.5, walkPitch));
+    lookLastX = t.clientX;
+    lookLastY = t.clientY;
+  }
+}, { passive: false });
+
+touchLookZone.addEventListener('touchend', () => { lookTouchId = null; });
+touchLookZone.addEventListener('touchcancel', () => { lookTouchId = null; });
+
+// exit walk mode on mobile
+touchWalkExit.addEventListener('click', (e) => {
+  e.stopPropagation();
+  exitWalkMode();
+});
+touchWalkExit.addEventListener('touchstart', (e) => e.stopPropagation());
+
 function updateWalkMode(elapsed, dt) {
   if (!walkMode) return;
 
@@ -3298,6 +6079,12 @@ function updateWalkMode(elapsed, dt) {
   if (walkKeys.s) { _walkMove.sub(_walkForward); moving = true; }
   if (walkKeys.a) { _walkMove.sub(_walkRight); moving = true; }
   if (walkKeys.d) { _walkMove.add(_walkRight); moving = true; }
+  // virtual joystick input (mobile)
+  if (joystickActive && (Math.abs(touchJoyX) > 0.1 || Math.abs(touchJoyY) > 0.1)) {
+    _walkMove.addScaledVector(_walkForward, -touchJoyY);
+    _walkMove.addScaledVector(_walkRight, touchJoyX);
+    moving = true;
+  }
 
   if (_walkMove.lengthSq() > 0) {
     _walkMove.normalize().multiplyScalar(speed);
@@ -3343,15 +6130,45 @@ function updateWalkMode(elapsed, dt) {
   controls.target.copy(camera.position).add(_walkLookDir.multiplyScalar(2));
 }
 
-const tourCameraMoves = [
-  { dist: 7,  height: 3.5, lookY: 1.0 }, // close mid
-  { dist: 10, height: 5,   lookY: 0.8 }, // pull back
-  { dist: 6,  height: 1.8, lookY: 1.0 }, // low angle close
-  { dist: 9,  height: 6,   lookY: 0.5 }, // slightly high
-  { dist: 7.5, height: 2.5, lookY: 1.2 }, // medium
-  { dist: 10, height: 4,   lookY: 0.9 }, // wide
-  { dist: 6.5, height: 4.5, lookY: 1.0 }, // close high
+// ── CINEMATIC SHOTS — keyframed camera positions that showcase the island ──
+// Each shot: start/end position (polar: angle, dist, height), lookAt Y, duration
+// Angles are offsets from cinematicAngle so the orbit progresses naturally
+const cinematicShots = [
+  // wide establishing orbit — classic overview
+  { angleSpan: 0.8, distStart: 9, distEnd: 9, hStart: 4.5, hEnd: 4.5, lookY: 0.9, duration: 8 },
+  // slow pull-in — wide to close, gently dropping
+  { angleSpan: 0.5, distStart: 11, distEnd: 6, hStart: 5, hEnd: 3, lookY: 1.0, duration: 7 },
+  // low water sweep — skimming the ocean surface to show waves and foam
+  { angleSpan: 0.7, distStart: 7, distEnd: 7, hStart: 0.6, hEnd: 0.8, lookY: 0.4, duration: 8 },
+  // high overhead drift — looking down at the island layout
+  { angleSpan: 0.4, distStart: 6, distEnd: 7, hStart: 8, hEnd: 9, lookY: 0.0, duration: 6 },
+  // close tree-level pass — intimate with vegetation
+  { angleSpan: 0.6, distStart: 4.5, distEnd: 5, hStart: 1.8, hEnd: 2.2, lookY: 1.2, duration: 7 },
+  // dramatic low angle — looking up at the island from below
+  { angleSpan: 0.5, distStart: 8, distEnd: 7, hStart: 0.3, hEnd: 0.5, lookY: 1.8, duration: 6 },
+  // slow wide pullback — retreating to reveal the whole scene
+  { angleSpan: 0.6, distStart: 6, distEnd: 12, hStart: 3.5, hEnd: 5.5, lookY: 0.8, duration: 8 },
+  // medium orbit with height wave — gentle rise and fall
+  { angleSpan: 0.9, distStart: 7.5, distEnd: 7.5, hStart: 2.5, hEnd: 5.5, lookY: 1.0, duration: 9 },
+  // cliff-edge flyby — close to the island edge, low
+  { angleSpan: 0.8, distStart: 4, distEnd: 4.5, hStart: 1.2, hEnd: 1.5, lookY: 0.8, duration: 7 },
+  // cinematic push-in to center — zooming toward the peak
+  { angleSpan: 0.3, distStart: 10, distEnd: 5, hStart: 4, hEnd: 3, lookY: 1.4, duration: 7 },
 ];
+
+let currentShot = 0;
+let shotTimer = 0;
+let shotBlend = 0; // 0-1 progress through current shot
+
+// reusable scratch objects for cinematic (avoid per-frame allocations)
+const _cinTargetPos = new THREE.Vector3();
+const _cinTargetLook = new THREE.Vector3();
+const _cinCurrentLook = new THREE.Vector3();
+
+// smooth ease-in-out curve for shot transitions
+function smootherStep(t) {
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
 
 function updateCinematicCamera(elapsed, dt) {
   const timeSinceInteraction = elapsed - lastInteractionTime;
@@ -3363,45 +6180,59 @@ function updateCinematicCamera(elapsed, dt) {
 
   if (!cinematicMode) return;
 
-  // blend in smoothly
-  cinematicBlend = Math.min(1, cinematicBlend + dt * 0.5);
-  const ease = cinematicBlend * cinematicBlend * (3 - 2 * cinematicBlend);
+  // blend in smoothly from user camera
+  cinematicBlend = Math.min(1, cinematicBlend + dt * 0.4);
+  const entryEase = smootherStep(cinematicBlend);
 
   // tour mode: auto-cycle biomes
   if (tourMode) {
     tourTimer += dt;
-    if (tourTimer > 12) {
+    if (tourTimer > 14) {
       tourTimer = 0;
+      const prevTourIndex = tourLandIndex;
       tourLandIndex = (tourLandIndex + 1) % LANDS.length;
-      tourCameraPhase = (tourCameraPhase + 1) % tourCameraMoves.length;
       switchToLand(tourLandIndex);
+      // completed a full tour cycle
+      if (tourLandIndex === 0 && prevTourIndex === LANDS.length - 1) unlockAchievement('tour_complete');
     }
   }
 
-  // camera orbit
-  cinematicAngle += 0.08 * dt;
-  const move = tourMode ? tourCameraMoves[tourCameraPhase] : { dist: 8, height: 4, lookY: 1.0 };
-  const targetDist = tourMode ? move.dist : 8 + Math.sin(elapsed * 0.12) * 1.5;
-  const targetHeight = tourMode ? move.height : 4 + Math.sin(elapsed * 0.08) * 1.5;
-  const lookY = tourMode ? move.lookY : 1.0;
+  // advance shot timer
+  const shot = cinematicShots[currentShot];
+  shotTimer += dt;
+  shotBlend = Math.min(1, shotTimer / shot.duration);
+  const t = smootherStep(shotBlend); // smooth interpolation through the shot
 
-  const targetPos = new THREE.Vector3(
-    Math.cos(cinematicAngle) * targetDist,
-    targetHeight,
-    Math.sin(cinematicAngle) * targetDist,
-  );
-  const targetLookAt = new THREE.Vector3(0, lookY, 0);
+  // transition to next shot when current one ends
+  if (shotBlend >= 1) {
+    shotTimer = 0;
+    shotBlend = 0;
+    cinematicAngle += shot.angleSpan; // carry forward the angle progress
+    currentShot = (currentShot + 1) % cinematicShots.length;
+  }
 
-  camera.position.lerp(targetPos, ease * 0.03);
-  const currentLookAt = new THREE.Vector3();
-  camera.getWorldDirection(currentLookAt);
-  const lookTarget = new THREE.Vector3().lerpVectors(
-    camera.position.clone().add(currentLookAt),
-    targetLookAt,
-    ease * 0.03,
+  // interpolate shot parameters
+  const dist = shot.distStart + (shot.distEnd - shot.distStart) * t;
+  const height = shot.hStart + (shot.hEnd - shot.hStart) * t;
+  const angle = cinematicAngle + shot.angleSpan * t;
+
+  _cinTargetPos.set(
+    Math.cos(angle) * dist,
+    height,
+    Math.sin(angle) * dist,
   );
-  camera.lookAt(targetLookAt.lerp(lookTarget, 1 - ease * 0.03));
-  controls.target.lerp(targetLookAt, ease * 0.03);
+  _cinTargetLook.set(0, shot.lookY, 0);
+
+  // smooth camera movement — blend between entry lerp and shot position
+  const lerpRate = entryEase * 0.06;
+  camera.position.lerp(_cinTargetPos, lerpRate);
+
+  // smooth look-at — prevents jarring snaps between shots
+  camera.getWorldDirection(_cinCurrentLook);
+  const currentLookTarget = _cinCurrentLook.multiplyScalar(5).add(camera.position);
+  currentLookTarget.lerp(_cinTargetLook, lerpRate * 1.5);
+  camera.lookAt(currentLookTarget);
+  controls.target.lerp(_cinTargetLook, lerpRate);
 }
 
 animate();
@@ -3429,12 +6260,8 @@ renderer.domElement.addEventListener('pointermove', (e) => {
   if (now - lastRippleTime < 0.15) return; // throttle
 
   raycaster.setFromCamera(mouse, camera);
-  // find water mesh
-  const waterMeshes = [];
-  islandGroup.traverse(child => {
-    if (child.userData.isWaveWater) waterMeshes.push(child);
-  });
-  const hits = raycaster.intersectObjects(waterMeshes);
+  if (!cachedWaterMesh) return;
+  const hits = raycaster.intersectObjects([cachedWaterMesh]);
   if (hits.length > 0) {
     const pt = hits[0].point;
     const uniforms = hits[0].object.userData.uniforms;
