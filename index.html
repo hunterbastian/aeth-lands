@@ -1303,6 +1303,135 @@ const colorGradeShader = {
 const colorGradePass = new ShaderPass(colorGradeShader);
 composer.addPass(colorGradePass);
 
+// ── UNDERWATER POST-PROCESSING — submerged view with caustics, distortion, god rays ──
+const underwaterShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uSubmergeDepth: { value: 0 }, // 0 = surface, 1 = fully submerged
+    uWaterColor: { value: new THREE.Color(0x2a6878) },
+    uCausticColor: { value: new THREE.Color(0x88ccdd) },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uSubmergeDepth;
+    uniform vec3 uWaterColor;
+    uniform vec3 uCausticColor;
+    varying vec2 vUv;
+
+    float uwHash(vec2 p) {
+      vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+      p3 += dot(p3, p3.yzx + 33.33);
+      return fract((p3.x + p3.y) * p3.z);
+    }
+    float uwNoise(vec2 p) {
+      vec2 i = floor(p), f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      float a = uwHash(i), b = uwHash(i + vec2(1,0));
+      float c = uwHash(i + vec2(0,1)), d = uwHash(i + vec2(1,1));
+      return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+
+    void main() {
+      if (uSubmergeDepth < 0.01) {
+        gl_FragColor = texture2D(tDiffuse, vUv);
+        return;
+      }
+
+      float depth = clamp(uSubmergeDepth, 0.0, 1.0);
+
+      // ── DISTORTION — wobbly refraction through water surface ──
+      vec2 distort = vec2(
+        sin(vUv.y * 15.0 + uTime * 1.8) * 0.004 + sin(vUv.y * 25.0 + uTime * 2.5) * 0.002,
+        cos(vUv.x * 12.0 + uTime * 1.5) * 0.003 + cos(vUv.x * 20.0 + uTime * 2.2) * 0.0015
+      ) * depth;
+      vec2 uv = vUv + distort;
+
+      vec3 col = texture2D(tDiffuse, uv).rgb;
+
+      // ── UNDERWATER FOG — blue-green tint increases with depth ──
+      float fogStrength = depth * 0.55;
+      col = mix(col, uWaterColor * 0.6, fogStrength);
+
+      // ── CAUSTIC LIGHT PATTERNS — dancing light refracting through surface ──
+      // voronoi caustics (two scales, different speeds)
+      float caustic = 0.0;
+      for (int k = 0; k < 2; k++) {
+        float scale = 6.0 + float(k) * 5.0;
+        float speed = 0.8 + float(k) * 0.3;
+        vec2 cuv = uv * scale + uTime * speed * vec2(0.3, 0.2);
+        vec2 ci = floor(cuv), cf = fract(cuv);
+        float minD = 1.0;
+        for (int y = -1; y <= 1; y++) {
+          for (int x = -1; x <= 1; x++) {
+            vec2 neighbor = vec2(float(x), float(y));
+            vec2 pt = vec2(uwHash(ci + neighbor), uwHash(ci + neighbor + vec2(7.3, 1.7)));
+            pt = 0.5 + 0.5 * sin(uTime * 0.9 + 6.2831 * pt);
+            float d = length(neighbor + pt - cf);
+            minD = min(minD, d);
+          }
+        }
+        caustic += pow(1.0 - minD, 3.0) * (k == 0 ? 0.5 : 0.25);
+      }
+      // caustics strongest near surface, project downward
+      float causticStrength = depth * (1.0 - vUv.y * 0.6); // stronger at bottom of screen
+      col += uCausticColor * caustic * causticStrength * 0.35;
+
+      // ── LIGHT RAYS — vertical god rays from surface above ──
+      float rays = 0.0;
+      for (int i = 0; i < 4; i++) {
+        float freq = 3.0 + float(i) * 2.5;
+        float phase = uTime * (0.15 + float(i) * 0.08);
+        float ray = pow(max(0.0, sin(uv.x * freq + phase + uwNoise(uv * 3.0 + uTime * 0.1) * 2.0)), 8.0);
+        rays += ray * (0.4 - float(i) * 0.08);
+      }
+      // rays fade toward bottom of screen (they come from above)
+      float rayFade = pow(max(0.0, 1.0 - vUv.y), 0.8);
+      col += vec3(0.3, 0.6, 0.7) * rays * rayFade * depth * 0.18;
+
+      // ── FLOATING PARTICLES / SEDIMENT — tiny bright dots ──
+      vec2 partUV = uv * 80.0 + vec2(uTime * 0.3, -uTime * 0.5);
+      float particle = step(0.992, uwHash(floor(partUV)));
+      float partFlicker = 0.5 + 0.5 * sin(uTime * 6.0 + uwHash(floor(partUV)) * 30.0);
+      col += vec3(0.5, 0.7, 0.8) * particle * partFlicker * depth * 0.4;
+
+      // ── DEPTH DARKENING — edges get darker underwater (murky periphery) ──
+      vec2 center = uv * 2.0 - 1.0;
+      float vignette = 1.0 - dot(center * 0.6, center * 0.6);
+      vignette = smoothstep(0.0, 1.0, vignette);
+      col *= mix(1.0 - depth * 0.35, 1.0, vignette);
+
+      // ── SURFACE SHIMMER — bright rippling band at the top (water surface seen from below) ──
+      float surfaceDist = smoothstep(0.0, 0.15, vUv.y); // top of screen = surface
+      float shimmer = uwNoise(vec2(uv.x * 20.0, uTime * 2.0)) * 0.5
+                    + uwNoise(vec2(uv.x * 35.0, uTime * 3.5)) * 0.3;
+      float surfaceBand = (1.0 - surfaceDist) * shimmer;
+      col += vec3(0.4, 0.7, 0.8) * surfaceBand * depth * 0.5;
+
+      // ── COLOR SHIFT — desaturate slightly, push toward blue-green ──
+      float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      col = mix(col, vec3(lum) * uWaterColor * 2.5, depth * 0.2);
+
+      gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
+    }
+  `,
+};
+const underwaterPass = new ShaderPass(underwaterShader);
+underwaterPass.uniforms.uSubmergeDepth.value = 0;
+composer.addPass(underwaterPass);
+
+// underwater state tracking
+let isUnderwater = false;
+let underwaterDepth = 0; // 0-1 smooth transition
+
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.04;
@@ -1952,6 +2081,7 @@ function createIsland(land) {
     uniforms: waterUniforms,
     transparent: true,
     depthWrite: false,
+    side: THREE.DoubleSide, // visible from below when submerged
     vertexShader: `
       // GPU-computed Gerstner waves — all displacement runs on GPU in parallel
       uniform float uTime;
@@ -5382,6 +5512,31 @@ function animate() {
     updateWalkMode(elapsed, dt);
   }
 
+  // ── UNDERWATER CHECK (orbit mode fallback) ──
+  if (!walkMode) {
+    const camWaterY = getWaterHeightAt(camera.position.x, camera.position.z, elapsed);
+    if (camera.position.y < camWaterY) {
+      isUnderwater = true;
+      const rawDepth = (camWaterY - camera.position.y) / 0.3;
+      underwaterDepth += (Math.min(rawDepth, 1.0) - underwaterDepth) * Math.min(1, dt * 6);
+    } else {
+      isUnderwater = false;
+      underwaterDepth += (0 - underwaterDepth) * Math.min(1, dt * 6);
+    }
+    underwaterPass.uniforms.uSubmergeDepth.value = underwaterDepth;
+    underwaterPass.uniforms.uTime.value = elapsed;
+    if (underwaterDepth > 0.01) {
+      const land = LANDS[currentLandIndex];
+      underwaterPass.uniforms.uWaterColor.value.set(land.colors.waterDeep);
+      underwaterPass.uniforms.uCausticColor.value.set(land.colors.waterShallow);
+      if (scene.fog) {
+        scene.fog.density = THREE.MathUtils.lerp(0.015, 0.12, underwaterDepth);
+      }
+    } else if (scene.fog && scene.fog.density > 0.016) {
+      scene.fog.density = 0.015; // restore
+    }
+  }
+
   // ── ACHIEVEMENTS ──
   updateAchievements(elapsed, worldDt);
 
@@ -5772,6 +5927,27 @@ const WALK_BOB_AMP = 0.006;
 let walkBobPhase = 0;
 let walkHeadBob = 0;
 
+// evaluate Gerstner water height at a world position (mirrors GPU vertex shader)
+function getWaterHeightAt(wx, wz, elapsed) {
+  if (!cachedWaterMesh) return tideOffset;
+  const waves = cachedWaterMesh.userData.waves;
+  if (!waves) return tideOffset;
+  const windStr = wind.strength;
+  const windAmpMod = 0.85 + windStr * 0.25;
+  const windSpeedMod = 0.9 + windStr * 0.15;
+  const wdx = wind.dir.x, wdy = wind.dir.y;
+  let dy = 0;
+  for (let wi = 0; wi < waves.length; wi++) {
+    const w = waves[wi];
+    const alignment = w.dir[0] * wdx + w.dir[1] * wdy;
+    const amp = w.amp * windAmpMod * (0.85 + Math.max(0, alignment) * 0.25);
+    const spd = w.speed * windSpeedMod;
+    const phase = w.freq * (w.dir[0] * wx + w.dir[1] * wz) - spd * elapsed;
+    dy += amp * Math.sin(phase);
+  }
+  return dy + tideOffset + 0.02; // +0.02 matches water mesh Y offset
+}
+
 // reusable scratch objects (avoid per-frame allocations)
 const _walkForward = new THREE.Vector3();
 const _walkRight = new THREE.Vector3();
@@ -5840,6 +6016,12 @@ function exitWalkMode() {
   walkBtn.classList.remove('active');
   walkCrosshair.classList.remove('visible');
   walkHint.classList.remove('visible');
+
+  // clear underwater state
+  isUnderwater = false;
+  underwaterDepth = 0;
+  underwaterPass.uniforms.uSubmergeDepth.value = 0;
+  if (scene.fog) scene.fog.density = 0.015; // restore normal fog
 
   // restore camera
   camera.fov = 38;
@@ -6115,6 +6297,41 @@ function updateWalkMode(elapsed, dt) {
   _walkQYaw.setFromAxisAngle(_walkAxisY, walkYaw);
   _walkQPitch.setFromAxisAngle(_walkAxisX, walkPitch);
   camera.quaternion.copy(_walkQYaw).multiply(_walkQPitch);
+
+  // ── UNDERWATER DETECTION — check if camera is below water surface ──
+  const camY = walkPos.y + walkHeadBob;
+  const waterY = getWaterHeightAt(walkPos.x, walkPos.z, elapsed);
+  const wasUnderwater = isUnderwater;
+  if (camY < waterY) {
+    isUnderwater = true;
+    // how deep below the surface (0 = at surface, 1 = fully submerged)
+    const rawDepth = (waterY - camY) / 0.15; // 0.15 units = fully submerged
+    underwaterDepth += (Math.min(rawDepth, 1.0) - underwaterDepth) * Math.min(1, dt * 8);
+  } else {
+    isUnderwater = false;
+    underwaterDepth += (0 - underwaterDepth) * Math.min(1, dt * 8);
+  }
+
+  // update underwater post-process
+  underwaterPass.uniforms.uSubmergeDepth.value = underwaterDepth;
+  underwaterPass.uniforms.uTime.value = elapsed;
+
+  // update water color to match current biome
+  if (underwaterDepth > 0.01) {
+    const land = LANDS[currentLandIndex];
+    underwaterPass.uniforms.uWaterColor.value.set(land.colors.waterDeep);
+    underwaterPass.uniforms.uCausticColor.value.set(land.colors.waterShallow);
+
+    // push scene fog denser when submerged for murky depth effect
+    if (scene.fog) {
+      scene.fog.density = THREE.MathUtils.lerp(0.015, 0.12, underwaterDepth);
+      scene.fog.color.lerpColors(
+        new THREE.Color(land.colors.water),
+        new THREE.Color(land.colors.waterDeep),
+        underwaterDepth * 0.7
+      );
+    }
+  }
 
   // keep controls target in sync (for smooth exit)
   _walkLookDir.set(0, 0, -1).applyQuaternion(camera.quaternion);
