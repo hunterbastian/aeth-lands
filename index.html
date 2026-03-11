@@ -548,6 +548,75 @@
     letter-spacing: 0.3px;
   }
 
+  /* Settings Panel — mirrors photo-panel style */
+  #settings-panel {
+    position: fixed;
+    top: 72px;
+    left: 20px;
+    width: 200px;
+    padding: 16px;
+    background: rgba(20, 18, 30, 0.82);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 14px;
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #settings-panel.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  #settings-panel h3 {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0d8cc;
+    letter-spacing: 0.8px;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+  }
+  #settings-panel .photo-control label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #b0a898;
+    margin-bottom: 4px;
+  }
+  #settings-panel .photo-control label span {
+    color: #d8d0c4;
+    font-weight: 500;
+  }
+  #settings-panel .photo-control input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    outline: none;
+  }
+  #settings-panel .photo-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #e0d8cc;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+  }
+  #settings-panel .photo-control input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #e0d8cc;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+  }
+
   /* Achievement Toast */
   #achievement-toast {
     position: fixed;
@@ -831,6 +900,28 @@
     <div class="photo-toggle-switch" id="photo-hide-ui-switch"></div>
   </div>
   <div id="photo-time-indicator">P to toggle · sliders adjust live</div>
+</div>
+<button id="settings-btn" title="Settings">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+  <div class="action-tooltip">Settings</div>
+</button>
+<div id="settings-panel">
+  <h3>World Settings</h3>
+  <div class="photo-control">
+    <label>Wave Intensity <span id="set-wave-val">100%</span></label>
+    <input type="range" id="set-wave" min="0" max="200" value="100">
+  </div>
+  <div class="photo-control">
+    <label>Time of Day <span id="set-tod-val">Auto</span></label>
+    <input type="range" id="set-tod" min="-1" max="100" value="-1">
+  </div>
+  <div class="photo-control">
+    <label>Cycle Speed <span id="set-cycle-val">100%</span></label>
+    <input type="range" id="set-cycle" min="0" max="300" value="100">
+  </div>
 </div>
 <button id="walk-btn" title="Walk Mode (F)">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1903,6 +1994,59 @@ sunGroup.position.copy(sunLight.position).multiplyScalar(3);
 sunGroup.scale.setScalar(1.8);
 scene.add(sunGroup);
 
+// ── MOON — visible crescent/full moon with glow at night ──
+const moonGroup = new THREE.Group();
+let moonOpacity = 0;
+{
+  // moon disc — soft silvery sphere with subtle craters
+  const moonGeo = new THREE.IcosahedronGeometry(0.55, 3);
+  const mp = moonGeo.attributes.position;
+  const moonColors = new Float32Array(mp.count * 3);
+  const moonLight1 = new THREE.Color(0xe8e4f0);
+  const moonDark = new THREE.Color(0xb0a8c0);
+  for (let i = 0; i < mp.count; i++) {
+    const x = mp.getX(i), y = mp.getY(i), z = mp.getZ(i);
+    const len = Math.sqrt(x * x + y * y + z * z);
+    // subtle crater dimples
+    const crater1 = Math.sin(x * 12 + y * 8) * Math.cos(z * 10 + x * 6);
+    const crater2 = Math.sin(y * 18 - z * 14) * 0.5;
+    const bump = 1 + crater1 * 0.02 + crater2 * 0.015;
+    const r = 0.55 * bump;
+    mp.setXYZ(i, x / len * r, y / len * r, z / len * r);
+    // color: lighter on one side (lit face), slight crater shadows
+    const litFace = (x / len * 0.5 + 0.5) * 0.3 + 0.7;
+    const craterDark = Math.max(0, crater1) * 0.15;
+    const c = moonLight1.clone().lerp(moonDark, craterDark + (1 - litFace) * 0.3);
+    moonColors[i * 3] = c.r; moonColors[i * 3 + 1] = c.g; moonColors[i * 3 + 2] = c.b;
+  }
+  moonGeo.setAttribute('color', new THREE.BufferAttribute(moonColors, 3));
+  moonGeo.computeVertexNormals();
+  const moonCoreMat = new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, depthWrite: false,
+  });
+  const moonCore = new THREE.Mesh(moonGeo, moonCoreMat);
+  moonGroup.add(moonCore);
+  moonGroup.userData.coreMat = moonCoreMat;
+
+  // inner glow — soft blue-white haze
+  const glowGeo = new THREE.IcosahedronGeometry(0.8, 2);
+  const glowMat = new THREE.MeshBasicMaterial({
+    color: 0xc8c8e8, transparent: true, opacity: 0, side: THREE.BackSide, depthWrite: false,
+  });
+  moonGroup.add(new THREE.Mesh(glowGeo, glowMat));
+  moonGroup.userData.glowMat = glowMat;
+
+  // outer haze — wide atmospheric scatter
+  const hazeGeo = new THREE.IcosahedronGeometry(1.6, 2);
+  const hazeMat = new THREE.MeshBasicMaterial({
+    color: 0x9898c0, transparent: true, opacity: 0, side: THREE.BackSide, depthWrite: false,
+  });
+  moonGroup.add(new THREE.Mesh(hazeGeo, hazeMat));
+  moonGroup.userData.hazeMat = hazeMat;
+}
+moonGroup.scale.setScalar(1.2);
+scene.add(moonGroup);
+
 // ── NOISE ───────────────────────────────────────
 let seed = 42;
 function seededRandom() {
@@ -2044,6 +2188,13 @@ function getTerrainHeight(x, z, land) {
   const v2 = Math.abs(x * 0.8 - z * 0.3 - 0.5);
   h -= Math.max(0, 0.2 - v2) * 0.12 * (1 - dist);
 
+  // beach shelf — flatten terrain toward the edge for a visible sandy beach
+  if (dist > 0.70) {
+    const beachBlend = Math.min(1, (dist - 0.70) / 0.15);
+    const beachH = mh * 0.08; // low beach shelf height
+    h = h * (1 - beachBlend) + beachH * beachBlend;
+  }
+
   // cliff edge — holds height until very edge, then sharp cliff drop
   if (dist > 0.82) {
     const falloff = Math.pow(Math.max(0, (1 - dist) / 0.18), 2.0);
@@ -2119,9 +2270,28 @@ function createIsland(land) {
     const dirtLine = maxTerrainH * 0.96;
     const rockLine = maxTerrainH * 0.98;
 
+    // ── BEACH RING — sandy perimeter specific to each biome ──
+    // beach starts at dist > 0.72 and fully sand by dist > 0.88
+    const beachStart = 0.72;
+    const beachFull = 0.88;
+    const beachFactor = dist > beachFull ? 1.0
+      : dist > beachStart ? Math.pow((dist - beachStart) / (beachFull - beachStart), 1.5) : 0;
+    // add noise to beach edge for organic look
+    const beachNoise = noise2D(x * 4.5 + 42, z * 4.5 + 42) * 0.15;
+    const effectiveBeach = Math.min(1, Math.max(0, beachFactor + beachNoise * (beachFactor > 0 ? 1 : 0)));
+
     let col;
     if (dist > 0.95 || h < 0.01) {
       col = n > 0.5 ? new THREE.Color(land.colors.sandLight) : new THREE.Color(land.colors.sand);
+    } else if (effectiveBeach > 0.5 && h < maxTerrainH * 0.15) {
+      // beach zone — sand with subtle variation
+      c1.set(land.colors.sand); c2.set(land.colors.sandLight);
+      col = c1.clone().lerp(c2, n * 0.7 + n2 * 0.3);
+      // blend toward grass at inner edge
+      if (effectiveBeach < 0.85) {
+        const grassCol = new THREE.Color(land.colors.grassPale);
+        col.lerp(grassCol, (0.85 - effectiveBeach) / 0.35);
+      }
     } else if (h < sandLine) {
       c1.set(land.colors.sand); c2.set(land.colors.grassPale);
       col = c1.clone().lerp(c2, Math.min(1, h / Math.max(0.01, sandLine)));
@@ -2271,20 +2441,20 @@ function createIsland(land) {
     }
   }
 
-  // Gerstner wave parameters — gentle rolling waves for Ghibli aesthetic
+  // Gerstner wave parameters — soft rolling waves visible from orbit camera
   const gerstnerWaves = [
-    // large primary swell — slow, gentle rollers
-    { dir: [0.7, 0.5],   amp: 0.055, freq: 0.4, speed: 0.35, steep: 0.55 },
-    { dir: [0.55, 0.7],  amp: 0.04,  freq: 0.55, speed: 0.45, steep: 0.50 },
-    // medium secondary swell
-    { dir: [-0.25, 0.9], amp: 0.028, freq: 0.85, speed: 0.6,  steep: 0.45 },
-    { dir: [0.9, -0.15], amp: 0.02,  freq: 1.1,  speed: 0.75, steep: 0.40 },
-    // cross-seas — subtle texture
-    { dir: [-0.55, 0.65],amp: 0.015, freq: 1.5, speed: 0.9,  steep: 0.38 },
-    { dir: [0.45, -0.75],amp: 0.012, freq: 1.8, speed: 1.1,  steep: 0.35 },
-    // gentle ripple detail
-    { dir: [-0.7, 0.5],  amp: 0.008, freq: 2.5, speed: 1.4,  steep: 0.30 },
-    { dir: [0.3, -0.85], amp: 0.006, freq: 3.0, speed: 1.6,  steep: 0.28 },
+    // large primary swell — visible rolling motion
+    { dir: [0.7, 0.5],   amp: 0.30,  freq: 0.35, speed: 0.28, steep: 0.55 },
+    { dir: [0.55, 0.7],  amp: 0.22,  freq: 0.48, speed: 0.35, steep: 0.50 },
+    // medium secondary swell — cross-wave texture
+    { dir: [-0.25, 0.9], amp: 0.14,  freq: 0.72, speed: 0.48, steep: 0.45 },
+    { dir: [0.9, -0.15], amp: 0.10,  freq: 0.95, speed: 0.58, steep: 0.42 },
+    // cross-seas — visible chop
+    { dir: [-0.55, 0.65],amp: 0.07,  freq: 1.30, speed: 0.72, steep: 0.38 },
+    { dir: [0.45, -0.75],amp: 0.05,  freq: 1.55, speed: 0.88, steep: 0.35 },
+    // detail ripples — subtle close-up texture
+    { dir: [-0.7, 0.5],  amp: 0.03,  freq: 2.10, speed: 1.15, steep: 0.30 },
+    { dir: [0.3, -0.85], amp: 0.02,  freq: 2.70, speed: 1.35, steep: 0.28 },
   ];
 
   // water shader — SoT-style: dramatic fresnel, Jacobian foam, SSS, god-ray specular
@@ -2312,6 +2482,10 @@ function createIsland(land) {
     // GPU Gerstner wave params — computed per-vertex on GPU instead of CPU
     uWaveA: { value: waveAArr },  // [dirX, dirY, effectiveAmp, freq] × 8
     uWaveB: { value: waveBArr },  // [effectiveSpeed, steep, 0, 0] × 8
+    uWaveIntensity: { value: 1.0 }, // settings panel wave intensity multiplier
+    uMoonDir: { value: new THREE.Vector3(0, 1, 0) },  // moon direction for water reflection
+    uMoonColor: { value: new THREE.Color(0xc8c8e8) },
+    uMoonIntensity: { value: 0.0 }, // 0 during day, ramps up at night
   };
 
   const waterMat = new THREE.ShaderMaterial({
@@ -2329,6 +2503,7 @@ function createIsland(land) {
       uniform float uWindStrength;
       uniform vec4 uWaveA[8]; // dirX, dirY, effectiveAmp, freq
       uniform vec4 uWaveB[8]; // effectiveSpeed, steep, 0, 0
+      uniform float uWaveIntensity; // settings multiplier
 
       varying vec3 vWorldPos;
       varying vec3 vNormal;
@@ -2360,7 +2535,7 @@ function createIsland(land) {
 
           // wind alignment — waves aligned with wind get boosted
           float alignment = dot(dir, uWindDir);
-          float amp = baseAmp * windAmpMod * (0.85 + max(0.0, alignment) * 0.25);
+          float amp = baseAmp * windAmpMod * uWaveIntensity * (0.85 + max(0.0, alignment) * 0.25);
           float spd = baseSpeed * windSpeedMod;
 
           float phase = freq * dot(dir, restPos.xz) - spd * uTime;
@@ -2416,6 +2591,9 @@ function createIsland(land) {
       uniform vec3 uFoamColor;
       uniform vec3 uSunDir;
       uniform vec3 uSunColor;
+      uniform vec3 uMoonDir;
+      uniform vec3 uMoonColor;
+      uniform float uMoonIntensity;
       uniform float uIslandR;
       uniform float uWaterR;
       uniform vec4 uRipples[5];
@@ -2502,6 +2680,13 @@ function createIsland(land) {
           waterCol = mix(uDeep * 0.55, uDeep * 0.3, (depthT - 0.85) / 0.15);
         }
 
+        // ── NIGHT DARKENING — water reflects less light at night ──
+        if (uMoonIntensity > 0.01) {
+          // darken water to deep navy at night, preserve some moonlit blue
+          vec3 nightTint = vec3(0.02, 0.04, 0.08);
+          waterCol = mix(waterCol, nightTint + waterCol * 0.12, uMoonIntensity * 0.75);
+        }
+
         // ── ABSORPTION — deeper water absorbs more light, color shifts to deep blue-green ──
         vec3 absorbColor = vec3(0.01, 0.04, 0.10);
         float absorb = smoothstep(0.25, 1.0, vDepth);
@@ -2529,7 +2714,10 @@ function createIsland(land) {
         float F0 = 0.02; // water IOR
         float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
         // sky color for reflection (time-of-day aware via sun color)
+        // sky reflection — darkens at night when moon is the main light
         vec3 skyReflect = mix(uMid * 0.9, uSunColor * 0.3, 0.2) + vec3(0.1, 0.12, 0.15);
+        // at night (moonIntensity > 0), darken the sky reflection to match dark sky
+        skyReflect = mix(skyReflect, uMoonColor * 0.08 + uMid * 0.15, uMoonIntensity);
         waterCol = mix(waterCol, skyReflect, fresnel * 0.65);
 
         // ── SPECULAR — triple lobe for SoT sun path ──
@@ -2540,6 +2728,19 @@ function createIsland(land) {
         waterCol += uSunColor * specPrimary * 1.2;
         waterCol += uSunColor * specSecondary * 0.2;
         waterCol += uSunColor * specTertiary * 0.04;
+
+        // ── MOON REFLECTION — silvery specular path at night ──
+        if (uMoonIntensity > 0.01) {
+          vec3 moonHalf = normalize(uMoonDir + viewDir);
+          float moonSpec1 = pow(max(dot(norm, moonHalf), 0.0), 180.0); // tight moon disc reflection
+          float moonSpec2 = pow(max(dot(norm, moonHalf), 0.0), 32.0);  // soft moon path on water
+          float moonSpec3 = pow(max(dot(norm, moonHalf), 0.0), 6.0);   // wide ambient glow
+          waterCol += uMoonColor * moonSpec1 * uMoonIntensity * 1.5;
+          waterCol += uMoonColor * moonSpec2 * uMoonIntensity * 0.25;
+          waterCol += uMoonColor * moonSpec3 * uMoonIntensity * 0.05;
+          // subtle moonlit tint on the water surface
+          waterCol += uMoonColor * fresnel * uMoonIntensity * 0.06;
+        }
 
         // ── JACOBIAN FOAM — whitecaps where waves break ──
         float foam = 0.0;
@@ -3639,16 +3840,16 @@ let dayTime = 0.2; // start at morning
 // Time-of-day color tints (applied universally on top of biome colors)
 const TOD_PHASES = [
   // t,    skyTop,     skyMid,     skyBot,     fog,        sunCol,     sunInt, ambCol,     ambInt, rimCol,     rimInt, fillInt
-  { t: 0.00, skyTop: '#1a1028', skyMid: '#2a1838', skyBot: '#483050', fog: '#201828', sunCol: '#8888cc', sunInt: 0.15, ambCol: '#283048', ambInt: 0.2, rimCol: '#6868a8', rimInt: 0.05, fillInt: 0.05 }, // midnight
-  { t: 0.12, skyTop: '#2a2040', skyMid: '#584068', skyBot: '#886878', fog: '#3a2840', sunCol: '#cc8888', sunInt: 0.3, ambCol: '#4a3858', ambInt: 0.25, rimCol: '#cc8888', rimInt: 0.1, fillInt: 0.08 }, // pre-dawn
+  { t: 0.00, skyTop: '#020408', skyMid: '#04080e', skyBot: '#080e18', fog: '#040610', sunCol: '#5868a8', sunInt: 0.06, ambCol: '#141830', ambInt: 0.15, rimCol: '#4858a0', rimInt: 0.03, fillInt: 0.02 }, // midnight — near black
+  { t: 0.12, skyTop: '#1a1830', skyMid: '#382848', skyBot: '#584060', fog: '#201830', sunCol: '#cc8888', sunInt: 0.3, ambCol: '#3a2848', ambInt: 0.25, rimCol: '#cc8888', rimInt: 0.1, fillInt: 0.08 }, // pre-dawn
   { t: 0.18, skyTop: '#e89870', skyMid: '#f0b888', skyBot: '#f8d8a8', fog: '#e8a880', sunCol: '#ffb880', sunInt: 0.9, ambCol: '#c89078', ambInt: 0.4, rimCol: '#ffc890', rimInt: 0.3, fillInt: 0.15 }, // dawn
   { t: 0.25, skyTop: '#78b8e8', skyMid: '#a8d0f0', skyBot: '#d0e8f0', fog: '#b8d0e0', sunCol: '#fff4e0', sunInt: 1.4, ambCol: '#c8d0e0', ambInt: 0.55, rimCol: '#ffecd0', rimInt: 0.35, fillInt: 0.3 }, // morning
   { t: 0.45, skyTop: '#78b8e8', skyMid: '#a8d0f0', skyBot: '#d0e8f0', fog: '#b8d0e0', sunCol: '#fff4e0', sunInt: 1.4, ambCol: '#c8d0e0', ambInt: 0.55, rimCol: '#ffecd0', rimInt: 0.35, fillInt: 0.3 }, // midday
   { t: 0.55, skyTop: '#d89848', skyMid: '#e8b868', skyBot: '#f0d890', fog: '#d8a868', sunCol: '#ffc868', sunInt: 1.1, ambCol: '#c89858', ambInt: 0.45, rimCol: '#ffd080', rimInt: 0.4, fillInt: 0.2 }, // golden hour
   { t: 0.63, skyTop: '#b85838', skyMid: '#d87848', skyBot: '#e8a068', fog: '#c07050', sunCol: '#ff8848', sunInt: 0.7, ambCol: '#a06840', ambInt: 0.35, rimCol: '#ff9060', rimInt: 0.3, fillInt: 0.12 }, // sunset
-  { t: 0.72, skyTop: '#382848', skyMid: '#583858', skyBot: '#785060', fog: '#3a2838', sunCol: '#9868a8', sunInt: 0.3, ambCol: '#483858', ambInt: 0.25, rimCol: '#886898', rimInt: 0.1, fillInt: 0.08 }, // dusk
-  { t: 0.82, skyTop: '#101828', skyMid: '#182030', skyBot: '#283040', fog: '#141820', sunCol: '#8888cc', sunInt: 0.15, ambCol: '#283048', ambInt: 0.2, rimCol: '#6868a8', rimInt: 0.05, fillInt: 0.05 }, // night
-  { t: 1.00, skyTop: '#1a1028', skyMid: '#2a1838', skyBot: '#483050', fog: '#201828', sunCol: '#8888cc', sunInt: 0.15, ambCol: '#283048', ambInt: 0.2, rimCol: '#6868a8', rimInt: 0.05, fillInt: 0.05 }, // midnight wrap
+  { t: 0.72, skyTop: '#12102a', skyMid: '#1a1830', skyBot: '#2a2040', fog: '#141020', sunCol: '#7870a0', sunInt: 0.2, ambCol: '#2a2848', ambInt: 0.22, rimCol: '#7868a0', rimInt: 0.08, fillInt: 0.06 }, // dusk
+  { t: 0.82, skyTop: '#040810', skyMid: '#080e1a', skyBot: '#0c1422', fog: '#060a12', sunCol: '#6878b8', sunInt: 0.08, ambCol: '#1a2040', ambInt: 0.18, rimCol: '#5868a8', rimInt: 0.04, fillInt: 0.03 }, // night — deep dark blue
+  { t: 1.00, skyTop: '#020408', skyMid: '#04080e', skyBot: '#080e18', fog: '#040610', sunCol: '#5868a8', sunInt: 0.06, ambCol: '#141830', ambInt: 0.15, rimCol: '#4858a0', rimInt: 0.03, fillInt: 0.02 }, // midnight — near black
 ];
 
 function lerpColor(a, b, t) {
@@ -3680,9 +3881,9 @@ function getTOD(time) {
   };
 }
 
-// sky canvas (reused each frame)
+// sky canvas (reused each frame) — 4px wide for stable equirectangular sampling
 const skyCanvas = document.createElement('canvas');
-skyCanvas.width = 1;
+skyCanvas.width = 4;
 skyCanvas.height = 512;
 const skyCtx = skyCanvas.getContext('2d');
 let skyTexture = null;
@@ -3703,7 +3904,7 @@ function updateDayNight(tod) {
     grad.addColorStop(0.5, '#' + tod.skyMid.getHexString());
     grad.addColorStop(1, '#' + tod.skyBot.getHexString());
     skyCtx.fillStyle = grad;
-    skyCtx.fillRect(0, 0, 1, 512);
+    skyCtx.fillRect(0, 0, 4, 512);
     if (!skyTexture) {
       skyTexture = new THREE.CanvasTexture(skyCanvas);
       skyTexture.mapping = THREE.EquirectangularReflectionMapping;
@@ -3713,9 +3914,13 @@ function updateDayNight(tod) {
     scene.background = skyTexture;
   }
 
-  // fog
-  if (!scene.fog) scene.fog = new THREE.FogExp2(tod.fog, 0.015);
-  else scene.fog.color.copy(tod.fog);
+  // fog — denser at night for atmospheric depth
+  const nightness = tod.sunInt < 0.3 ? 1 - tod.sunInt / 0.3 : 0;
+  const fogDensity = 0.015 + nightness * 0.008;
+  if (!scene.fog) scene.fog = new THREE.FogExp2(tod.fog, fogDensity);
+  else { scene.fog.color.copy(tod.fog); scene.fog.density = fogDensity; }
+  // also tint the renderer clear color to match fog (prevents white flashes)
+  renderer.setClearColor(tod.fog, 1);
 
   // lights
   sunLight.color.copy(tod.sunCol);
@@ -3764,7 +3969,7 @@ function updateDayNight(tod) {
   canopyLight.color.set(0xd8c898).lerp(_colGoldenCanopy, goldenFactor);
 
   // ── MOONLIGHT — cool blue directional at night ──
-  moonLight.intensity = nightFade * 0.35;
+  moonLight.intensity = nightFade * 0.55; // brighter moonlight for dramatic night scene
   moonLight.position.set(-Math.cos(sunAngle + Math.PI) * 8, 10, -3);
 
   // ── AMBIENT drops for dramatic shadows at golden hour ──
@@ -3773,7 +3978,7 @@ function updateDayNight(tod) {
   // ── POST-PROCESSING — photo mode overrides, otherwise dynamic per TOD ──
   if (!photoMode) {
     const bloomGolden = goldenFactor * 0.75;
-    const bloomNight = nightFade * 0.5;
+    const bloomNight = nightFade * 0.3; // reduced — prevents horizon glow at night
     const bloomDay = (1.0 - goldenFactor) * (1.0 - nightFade) * 0.45;
     bloomPass.strength = Math.max(bloomDay, Math.max(bloomGolden, bloomNight));
     bloomPass.threshold = 0.72 - nightFade * 0.1 - goldenFactor * 0.08;
@@ -5494,7 +5699,11 @@ function animate() {
   updateTide(elapsed);
 
   // ── DAY/NIGHT CYCLE UPDATE ──
-  dayTime = (dayTime + CYCLE_SPEED * worldDt) % 1;
+  if (todOverride >= 0) {
+    dayTime = todOverride; // manual override from settings slider
+  } else {
+    dayTime = (dayTime + CYCLE_SPEED * cycleSpeedMul * worldDt) % 1;
+  }
   const tod = getTOD(dayTime);
   updateDayNight(tod);
 
@@ -5542,6 +5751,21 @@ function animate() {
     uniforms.uWindDir.value.copy(wind.dir);
     uniforms.uWindStrength.value = wind.strength;
     uniforms.uTideOffset.value = tideOffset;
+    uniforms.uWaveIntensity.value = waveIntensityMul;
+    uniforms.uMoonDir.value.copy(moonLight.position).normalize();
+    uniforms.uMoonColor.value.set(0xc8c8e8);
+    uniforms.uMoonIntensity.value = moonOpacity;
+  }
+
+  // ── CAMERA ORBIT MOMENTUM — track angular velocity for vegetation reaction ──
+  {
+    const azimuth = controls.getAzimuthalAngle();
+    let delta = azimuth - _prevAzimuth;
+    // handle wrap-around
+    if (delta > Math.PI) delta -= Math.PI * 2;
+    if (delta < -Math.PI) delta += Math.PI * 2;
+    _orbitAngularVelocity = _orbitAngularVelocity * _orbitDecay + delta * (1 - _orbitDecay) * 8;
+    _prevAzimuth = azimuth;
   }
 
   // ── VEGETATION WIND (cached arrays — no traverse) ──
@@ -5571,19 +5795,27 @@ function animate() {
     child.rotation.x = rx;
     child.rotation.z = rz;
   }
+  // orbit momentum — trees and bushes react to fast camera orbiting
+  const orbitPush = _orbitAngularVelocity * 2.5; // scale for visible effect
   for (let i = 0; i < _cachedTrees.length; i++) {
     const child = _cachedTrees[i];
     const wf = getWindAt(child.position.x, child.position.z, elapsed);
     const sway = wf * child.userData.windFlex;
     const secondary = Math.sin(elapsed * 1.8 + child.userData.windPhase) * 0.008 * wind.strength;
-    child.rotation.x = child.userData.baseRotX + wind.dir.y * (sway + secondary);
-    child.rotation.z = child.userData.baseRotZ - wind.dir.x * (sway + secondary);
+    // orbit momentum adds a delayed bounce via the tree's phase offset
+    const orbitBounce = orbitPush * child.userData.windFlex * Math.cos(elapsed * 4 + child.userData.windPhase);
+    child.rotation.x = child.userData.baseRotX + wind.dir.y * (sway + secondary) + orbitBounce * 0.6;
+    child.rotation.z = child.userData.baseRotZ - wind.dir.x * (sway + secondary) + orbitBounce;
   }
   for (let i = 0; i < _cachedBushes.length; i++) {
     const child = _cachedBushes[i];
     const wf = getWindAt(child.position.x, child.position.z, elapsed);
     let brx = child.userData.baseRotX + wind.dir.y * wf * child.userData.windFlex;
     let brz = child.userData.baseRotZ - wind.dir.x * wf * child.userData.windFlex;
+    // bushes react more to orbit momentum (lower, more springy)
+    const bushBounce = orbitPush * (child.userData.windFlex || 0.1) * 1.5 * Math.cos(elapsed * 5 + (child.userData.windPhase || 0));
+    brx += bushBounce * 0.5;
+    brz += bushBounce;
     if (walkMode) {
       const push = getVegetationPush(child.position.x, child.position.z, 0.5, 0.35);
       if (push) { brx += push.rx; brz += push.rz; }
@@ -5743,6 +5975,33 @@ function animate() {
     // breathing scale — whole sun
     const breathe = 1 + Math.sin(elapsed * 1.0) * 0.035 + Math.sin(elapsed * 2.3) * 0.015;
     sunGroup.scale.setScalar(1.8 * breathe);
+  }
+
+  // ── MOON UPDATE — visible at night, opposite the sun ──
+  {
+    // position moon opposite the sun
+    moonGroup.position.copy(moonLight.position).multiplyScalar(2.5);
+    moonGroup.quaternion.copy(camera.quaternion); // billboard toward camera
+
+    // fade in during night
+    const moonAbove = moonLight.position.y > 0 ? 1.0 : 0.0;
+    const moonHorizonT = Math.max(0, Math.min(1, moonLight.position.y / 4));
+    moonOpacity = nightFactor * moonHorizonT * 0.9;
+
+    moonGroup.userData.coreMat.opacity = moonOpacity;
+    moonGroup.userData.glowMat.opacity = moonOpacity * 0.35;
+    moonGroup.userData.hazeMat.opacity = moonOpacity * 0.15;
+
+    // gentle color shift — warmer near horizon, cooler high up
+    const moonHue = moonHorizonT > 0.5 ? 0xd8d8f0 : 0xf0d8c0;
+    moonGroup.userData.glowMat.color.set(moonHue);
+
+    // subtle breathing
+    const moonBreathe = 1 + Math.sin(elapsed * 0.6) * 0.02;
+    moonGroup.scale.setScalar(1.2 * moonBreathe);
+
+    // slow rotation for texture movement
+    moonGroup.children[0].rotation.y += dt * 0.02;
   }
 
   // ── WALK MODE UPDATE ──
@@ -6060,7 +6319,7 @@ freezeToggle.addEventListener('click', () => {
 // hide UI toggle
 const hideUIToggle = document.getElementById('photo-hide-ui-toggle');
 const hideUISwitch = document.getElementById('photo-hide-ui-switch');
-const HIDEABLE_UI_SELECTOR = '#ui, #screenshot-btn, #tour-btn, #walk-btn, #photo-btn, #cinematic-indicator, #walk-hint';
+const HIDEABLE_UI_SELECTOR = '#ui, #screenshot-btn, #tour-btn, #walk-btn, #photo-btn, #settings-btn, #cinematic-indicator, #walk-hint';
 hideUIToggle.addEventListener('click', () => {
   photoUIHidden = !photoUIHidden;
   hideUISwitch.classList.toggle('on', photoUIHidden);
@@ -6097,6 +6356,59 @@ window.addEventListener('keydown', (e) => {
     if (!walkMode) togglePhotoMode();
   }
 });
+
+// ── SETTINGS PANEL ──────────────────────────────
+const settingsBtn = document.getElementById('settings-btn');
+const settingsPanel = document.getElementById('settings-panel');
+let settingsOpen = false;
+let waveIntensityMul = 1.0;   // multiplied into wave amps at render time
+let todOverride = -1;         // -1 = auto cycle, 0-1 = manual time of day
+let cycleSpeedMul = 1.0;     // multiplier for day/night cycle speed
+
+settingsBtn.addEventListener('click', () => {
+  settingsOpen = !settingsOpen;
+  settingsBtn.classList.toggle('active', settingsOpen);
+  settingsPanel.classList.toggle('visible', settingsOpen);
+});
+
+// wave intensity slider
+const waveSlider = document.getElementById('set-wave');
+const waveLabel = document.getElementById('set-wave-val');
+waveSlider.addEventListener('input', () => {
+  const v = parseFloat(waveSlider.value);
+  waveIntensityMul = v / 100;
+  waveLabel.textContent = Math.round(v) + '%';
+});
+
+// time of day slider (-1 = auto, 0-100 = manual position in cycle)
+const todSlider = document.getElementById('set-tod');
+const todLabel = document.getElementById('set-tod-val');
+todSlider.addEventListener('input', () => {
+  const v = parseInt(todSlider.value);
+  if (v < 0) {
+    todOverride = -1;
+    todLabel.textContent = 'Auto';
+  } else {
+    todOverride = v / 100;
+    const hours = Math.floor(todOverride * 24);
+    const mins = Math.floor((todOverride * 24 - hours) * 60);
+    todLabel.textContent = String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0');
+  }
+});
+
+// cycle speed slider
+const cycleSlider = document.getElementById('set-cycle');
+const cycleLabel = document.getElementById('set-cycle-val');
+cycleSlider.addEventListener('input', () => {
+  const v = parseFloat(cycleSlider.value);
+  cycleSpeedMul = v / 100;
+  cycleLabel.textContent = Math.round(v) + '%';
+});
+
+// ── CAMERA ORBIT MOMENTUM → VEGETATION REACTION ──
+let _prevAzimuth = 0;
+let _orbitAngularVelocity = 0;
+const _orbitDecay = 0.92; // how fast the momentum fades
 
 // ── CINEMATIC CAMERA ────────────────────────────
 let lastInteractionTime = 0;
@@ -6203,7 +6515,7 @@ function getWaterHeightAt(wx, wz, elapsed) {
   for (let wi = 0; wi < waves.length; wi++) {
     const w = waves[wi];
     const alignment = w.dir[0] * wdx + w.dir[1] * wdy;
-    const amp = w.amp * windAmpMod * (0.85 + Math.max(0, alignment) * 0.25);
+    const amp = w.amp * windAmpMod * waveIntensityMul * (0.85 + Math.max(0, alignment) * 0.25);
     const spd = w.speed * windSpeedMod;
     const phase = w.freq * (w.dir[0] * wx + w.dir[1] * wz) - spd * elapsed;
     dy += amp * Math.sin(phase);
