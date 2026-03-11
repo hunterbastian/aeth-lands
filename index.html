@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aethlands</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     background: #1a1a2e;
@@ -34,12 +34,13 @@
     background: rgba(255,255,255,0.12);
     backdrop-filter: blur(12px);
     color: #5a4a3a;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     opacity: 0;
     transform: translateY(20px);
     animation: btnEntrance 0.5s ease-out forwards;
@@ -194,15 +195,30 @@
     background: rgba(30,28,40,0.7);
     backdrop-filter: blur(12px);
     color: #d8d0c4;
-    font-size: 11px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.5px;
+    letter-spacing: 2px;
     z-index: 10;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.5s ease;
   }
   #cinematic-indicator.visible { opacity: 1; }
+
+  /* Cinematic letterbox bars */
+  .cinematic-bar {
+    position: fixed;
+    left: 0;
+    width: 100%;
+    background: #000;
+    z-index: 8;
+    pointer-events: none;
+    transition: height 1.2s cubic-bezier(0.25, 0.1, 0.25, 1.0);
+  }
+  .cinematic-bar-top { top: 0; height: 0; }
+  .cinematic-bar-bottom { bottom: 0; height: 0; }
+  .cinematic-bar.visible { height: min(5vh, 48px); }
 
   /* Walk Mode Button */
   #walk-btn {
@@ -949,6 +965,8 @@
 <div id="touch-look-zone"></div>
 <button id="touch-walk-exit">Exit Walk Mode</button>
 <div id="cinematic-indicator">CINEMATIC</div>
+<div class="cinematic-bar cinematic-bar-top"></div>
+<div class="cinematic-bar cinematic-bar-bottom"></div>
 <div id="achievement-toast">
   <div class="ach-icon"></div>
   <div class="ach-text">
@@ -980,264 +998,118 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 const LANDS = [
   {
     name: 'Meadow',
-    desc: 'Rolling green hills with wildflowers and butterflies',
+    desc: 'Lush Ghibli hillside awash in wildflowers and drifting butterflies',
     treeStyle: 'round',
     colors: {
-      grass: '#82c87a', grassDark: '#5ea858', grassLight: '#aade94', grassPale: '#c8ecb0',
-      dirt: '#c89868', dirtDark: '#a07848', dirtLight: '#d8b088',
-      sand: '#f0e0b8', sandLight: '#f8ecd0',
-      rock: '#9898a8', rockDark: '#707080', rockMoss: '#6a9a68',
+      grass: '#6ec26a', grassDark: '#4aaa48', grassLight: '#98d888', grassPale: '#c0eaac',
+      dirt: '#c08a58', dirtDark: '#9a6e3a', dirtLight: '#d8a878',
+      sand: '#f2e2b8', sandLight: '#faf0d0',
+      rock: '#a0a0ac', rockDark: '#78788a', rockMoss: '#5e9a5c',
       snow: '#f4f0ff',
-      water: '#68c0d8', waterShallow: '#98dce8', waterDeep: '#4890b0', waterFoam: '#d8f0f0',
-      trunk: '#8e6e42', trunkDark: '#6a4e2a', trunkLight: '#a88a58',
-      foliage: '#52a858', foliageDark: '#3a8a3c', foliageLight: '#7acc72',
-      flowers: '#ee98b8', flowers2: '#f0c858', flowers3: '#c8a0e0',
-      bush: '#3d8848', bushLight: '#60a858',
-      cliff: '#907060', cliffDark: '#685040', cliffMoss: '#5a8a50',
+      water: '#5cc0d8', waterShallow: '#8adae8', waterDeep: '#3a8ab0', waterFoam: '#d0f0ef',
+      trunk: '#7a5e38', trunkDark: '#5c4020', trunkLight: '#a88850',
+      foliage: '#42a650', foliageDark: '#2e8a34', foliageLight: '#6cc868',
+      flowers: '#f0889e', flowers2: '#f8c840', flowers3: '#c898e0',
+      bush: '#358a40', bushLight: '#55a850',
+      cliff: '#8a6858', cliffDark: '#624838', cliffMoss: '#4e884a',
     },
-    sky: ['#8ec4e8', '#c8dff0', '#e8f0e0'],
-    skyBottom: '#e0ecd0',
-    fog: '#d0dcd4',
-    outline: '#4a3828',
+    sky: ['#7ec8f0', '#c0dff4', '#e4f4e0'],
+    skyBottom: '#d8ecc8',
+    fog: '#c8dcc8',
+    outline: '#3e3020',
     hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
     mountainHeight: 1.8, treeCount: 65, bushCount: 90,
     cloudColor: '#ffffff', cloudShadow: '#c8d0d8',
-    ambientColor: '#b8c8d8', sunColor: '#fff0d0',
+    ambientColor: '#b0c8d8', sunColor: '#fff0c8',
     hasButterflies: true,
     weather: 'rain', weatherIntensity: 0.3,
     fogBanks: 3, fogOpacity: 0.15,
   },
   {
     name: 'Mushroom Grove',
-    desc: 'Bioluminescent fungi in a misty twilight hollow',
+    desc: 'Enchanted twilight hollow aglow with bioluminescent fungi',
     treeStyle: 'mushroom',
     colors: {
-      grass: '#5a9a70', grassDark: '#3a7a50', grassLight: '#80b888', grassPale: '#a0d0a0',
-      dirt: '#6a5848', dirtDark: '#4a3828', dirtLight: '#887060',
+      grass: '#5a9a70', grassDark: '#3a7a52', grassLight: '#78b888', grassPale: '#98d0a0',
+      dirt: '#6a5a4a', dirtDark: '#4a3a2a', dirtLight: '#887060',
       sand: '#a89880', sandLight: '#c0b098',
-      rock: '#585068', rockDark: '#3a3248', rockMoss: '#4a6858',
-      snow: '#c8c0d0',
+      rock: '#585070', rockDark: '#3a3250', rockMoss: '#4a6858',
+      snow: '#c8c0d8',
       water: '#4888a0', waterShallow: '#68a8b8', waterDeep: '#2a6878', waterFoam: '#90c0c8',
       trunk: '#7a6850', trunkDark: '#584830', trunkLight: '#988868',
-      foliage: '#b058a0', foliageDark: '#884878', foliageLight: '#d878b8',
-      flowers: '#78d8c0', flowers2: '#b890e0', flowers3: '#e0a8d0',
+      foliage: '#c858a8', foliageDark: '#a04080', foliageLight: '#e078c0',
+      flowers: '#60e8c8', flowers2: '#c088f0', flowers3: '#e8a0d8',
       bush: '#4a7858', bushLight: '#5a9068',
-      cliff: '#5a4848', cliffDark: '#3a2828', cliffMoss: '#3a5838',
+      cliff: '#5a4a50', cliffDark: '#3a2a30', cliffMoss: '#3a5838',
     },
-    sky: ['#3a2848', '#584060', '#705878'],
-    skyBottom: '#685068',
-    fog: '#584058',
+    sky: ['#3a2850', '#604878', '#806090'],
+    skyBottom: '#786080',
+    fog: '#604868',
     outline: '#2a1828',
     hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
     mountainHeight: 1.2, treeCount: 45, bushCount: 60,
-    cloudColor: '#887880', cloudShadow: '#605058',
-    ambientColor: '#806878', sunColor: '#d8b8c8',
+    cloudColor: '#988890', cloudShadow: '#706068',
+    ambientColor: '#907888', sunColor: '#e0c0d0',
     hasGlowSpots: true,
     weather: 'rain', weatherIntensity: 0.5,
     fogBanks: 5, fogOpacity: 0.25,
   },
   {
     name: 'Crystal Peaks',
-    desc: 'Frozen spires rise through snowdrifts and mist',
+    desc: 'Alpine spires and crystal formations beneath a crisp mountain sky',
     treeStyle: 'crystal',
     colors: {
-      grass: '#88a0b0', grassDark: '#6880a0', grassLight: '#a8c0c8', grassPale: '#c0d0d8',
-      dirt: '#707888', dirtDark: '#506070', dirtLight: '#8898a0',
-      sand: '#b0b8c8', sandLight: '#c8d0d8',
-      rock: '#5868a0', rockDark: '#384878', rockMoss: '#607898',
-      snow: '#e0ecff',
-      water: '#3868a8', waterShallow: '#5888c0', waterDeep: '#204888', waterFoam: '#a0c0e0',
-      trunk: '#6070a0', trunkDark: '#405080', trunkLight: '#8090b0',
-      foliage: '#78a8e0', foliageDark: '#5888c0', foliageLight: '#a0c8f0',
-      flowers: '#b0d0f0', flowers2: '#d0b8e0', flowers3: '#e0e0f8',
-      bush: '#5878a0', bushLight: '#7090b0',
-      cliff: '#506080', cliffDark: '#384060', cliffMoss: '#486888',
+      grass: '#6aaa68', grassDark: '#4a8a48', grassLight: '#88c880', grassPale: '#c8e8c0',
+      dirt: '#a0b0b8', dirtDark: '#8098a0', dirtLight: '#b8c8d0',
+      sand: '#d0dce0', sandLight: '#e0e8ec',
+      rock: '#8898b8', rockDark: '#6878a0', rockMoss: '#7090a8',
+      snow: '#f4f8ff',
+      water: '#3090d0', waterShallow: '#58b8e8', waterDeep: '#1868a8', waterFoam: '#c8e8f8',
+      trunk: '#6888c8', trunkDark: '#4868a8', trunkLight: '#88a8e0',
+      foliage: '#78c8f8', foliageDark: '#58a8e0', foliageLight: '#a0e0ff',
+      flowers: '#b8e0ff', flowers2: '#d0d0f8', flowers3: '#e8f0ff',
+      bush: '#5898a8', bushLight: '#78b0c0',
+      cliff: '#8898b0', cliffDark: '#6878a0', cliffMoss: '#6890a0',
     },
-    sky: ['#384878', '#6888b0', '#90a8c8'],
-    skyBottom: '#90a8c0',
-    fog: '#7088a8',
-    outline: '#283848',
+    sky: ['#3878b8', '#68a8e0', '#98d0f0'],
+    skyBottom: '#c8e4f4',
+    fog: '#98c8e0',
+    outline: '#304058',
     hasTrees: true, hasFlowers: true, hasSnow: true, hasRocks: true, hasBushes: false,
-    mountainHeight: 2.8, treeCount: 30, bushCount: 0,
-    cloudColor: '#d0d8e8', cloudShadow: '#9098b0',
-    ambientColor: '#8098b8', sunColor: '#d8e0f0',
+    mountainHeight: 3.2, treeCount: 35, bushCount: 0,
+    cloudColor: '#f0f4ff', cloudShadow: '#b0c0d8',
+    ambientColor: '#a0c8e8', sunColor: '#f8f4ff',
     weather: 'snow', weatherIntensity: 0.7,
     fogBanks: 4, fogOpacity: 0.2,
   },
   {
     name: 'Autumn Vale',
-    desc: 'Golden canopy with drifting leaves and warm light',
+    desc: 'Romantic golden canopy with drifting amber leaves in warm light',
     treeStyle: 'round',
     colors: {
-      grass: '#b09050', grassDark: '#907030', grassLight: '#c8a860', grassPale: '#d8c080',
-      dirt: '#907050', dirtDark: '#705030', dirtLight: '#a88868',
-      sand: '#e0c890', sandLight: '#ecd8a8',
-      rock: '#807060', rockDark: '#605040', rockMoss: '#808050',
+      grass: '#b88840', grassDark: '#986820', grassLight: '#d0a050', grassPale: '#deb870',
+      dirt: '#8a6848', dirtDark: '#684828', dirtLight: '#a88060',
+      sand: '#e4c480', sandLight: '#f0d898',
+      rock: '#7a6850', rockDark: '#584838', rockMoss: '#787040',
       snow: '#e8e0d0',
-      water: '#5888a0', waterShallow: '#78a8b0', waterDeep: '#387080', waterFoam: '#c0d8d0',
-      trunk: '#684828', trunkDark: '#482810', trunkLight: '#886840',
-      foliage: '#d07028', foliageDark: '#b05010', foliageLight: '#e89040',
-      flowers: '#e04828', flowers2: '#f0b830', flowers3: '#c86020',
-      bush: '#a86828', bushLight: '#c08838',
-      cliff: '#706048', cliffDark: '#504028', cliffMoss: '#787040',
+      water: '#4a80a0', waterShallow: '#6aa0b0', waterDeep: '#2e6478', waterFoam: '#b8d0c8',
+      trunk: '#5a3e1e', trunkDark: '#3a2008', trunkLight: '#7a5830',
+      foliage: '#d86818', foliageDark: '#b84808', foliageLight: '#f08830',
+      flowers: '#e03818', flowers2: '#f0b020', flowers3: '#c85818',
+      bush: '#b06020', bushLight: '#c88030',
+      cliff: '#685838', cliffDark: '#483820', cliffMoss: '#706838',
     },
-    sky: ['#b87848', '#d8a068', '#e8c090'],
-    skyBottom: '#e8c898',
-    fog: '#c8a878',
-    outline: '#402810',
+    sky: ['#c07040', '#daa060', '#ecc488'],
+    skyBottom: '#f0cc90',
+    fog: '#c8a068',
+    outline: '#382008',
     hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
-    mountainHeight: 1.8, treeCount: 55, bushCount: 70,
-    cloudColor: '#f0e0c0', cloudShadow: '#c0a880',
-    ambientColor: '#c09868', sunColor: '#ffd888',
+    mountainHeight: 1.8, treeCount: 70, bushCount: 85,
+    cloudColor: '#f4e0b8', cloudShadow: '#c0a078',
+    ambientColor: '#c89058', sunColor: '#ffd880',
     hasLeaves: true,
     weather: 'rain', weatherIntensity: 0.2,
     fogBanks: 2, fogOpacity: 0.12,
-  },
-  {
-    name: 'Coral Atoll',
-    desc: 'Tropical reef with turquoise shallows and coral branches',
-    treeStyle: 'coral',
-    colors: {
-      grass: '#50b080', grassDark: '#308860', grassLight: '#78c898', grassPale: '#a0e0b0',
-      dirt: '#c0a070', dirtDark: '#a08050', dirtLight: '#d0b888',
-      sand: '#f0e4b0', sandLight: '#f8f0c8',
-      rock: '#a88870', rockDark: '#886850', rockMoss: '#60a078',
-      snow: '#e8e0d8',
-      water: '#10a8c0', waterShallow: '#40d0d8', waterDeep: '#0888a0', waterFoam: '#c8f0f0',
-      trunk: '#988060', trunkDark: '#786040', trunkLight: '#b0a078',
-      foliage: '#e86050', foliageDark: '#c83830', foliageLight: '#f08878',
-      flowers: '#f09030', flowers2: '#e05890', flowers3: '#f8c050',
-      bush: '#40a070', bushLight: '#60b888',
-      cliff: '#a89078', cliffDark: '#887058', cliffMoss: '#58a070',
-    },
-    sky: ['#2898b0', '#58c0d0', '#90d8e0'],
-    skyBottom: '#b8e0d8',
-    fog: '#80c0c8',
-    outline: '#283840',
-    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
-    mountainHeight: 0.9, treeCount: 35, bushCount: 50,
-    cloudColor: '#f0f8ff', cloudShadow: '#b8d0d8',
-    ambientColor: '#90c8d0', sunColor: '#fff0d8',
-    hasButterflies: true,
-    weather: 'none', weatherIntensity: 0,
-    fogBanks: 1, fogOpacity: 0.08,
-  },
-  {
-    name: 'Spirit Forest',
-    desc: 'Ancient trees with glowing spirits in deep shadow',
-    treeStyle: 'tall',
-    colors: {
-      grass: '#2a5838', grassDark: '#183820', grassLight: '#3a7048', grassPale: '#488858',
-      dirt: '#403828', dirtDark: '#282018', dirtLight: '#585040',
-      sand: '#506048', sandLight: '#688060',
-      rock: '#384038', rockDark: '#202820', rockMoss: '#2a4828',
-      snow: '#90a090',
-      water: '#1a4838', waterShallow: '#2a5848', waterDeep: '#0a2818', waterFoam: '#4a7860',
-      trunk: '#2a3020', trunkDark: '#181810', trunkLight: '#3a4830',
-      foliage: '#1a4828', foliageDark: '#0a2818', foliageLight: '#2a6838',
-      flowers: '#60e8a0', flowers2: '#48c8a0', flowers3: '#80f0c0',
-      bush: '#1a3820', bushLight: '#2a4828',
-      cliff: '#383028', cliffDark: '#201810', cliffMoss: '#2a4020',
-    },
-    sky: ['#0a1810', '#182820', '#283830'],
-    skyBottom: '#203020',
-    fog: '#182818',
-    outline: '#080c08',
-    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
-    mountainHeight: 2.0, treeCount: 60, bushCount: 80,
-    cloudColor: '#304030', cloudShadow: '#182818',
-    ambientColor: '#304838', sunColor: '#88b088',
-    hasGlowSpots: true,
-    weather: 'rain', weatherIntensity: 0.6,
-    fogBanks: 6, fogOpacity: 0.3,
-  },
-  {
-    name: 'Volcanic',
-    desc: 'Smoldering peaks with lava veins and ashen rock',
-    treeStyle: 'round',
-    colors: {
-      grass: '#506048', grassDark: '#384030', grassLight: '#687858', grassPale: '#788868',
-      dirt: '#484040', dirtDark: '#302828', dirtLight: '#585050',
-      sand: '#605850', sandLight: '#787060',
-      rock: '#383038', rockDark: '#201820', rockMoss: '#384028',
-      snow: '#808080',
-      water: '#283848', waterShallow: '#385058', waterDeep: '#182830', waterFoam: '#485860',
-      trunk: '#403828', trunkDark: '#282010', trunkLight: '#585038',
-      foliage: '#384830', foliageDark: '#283020', foliageLight: '#485838',
-      flowers: '#e04828', flowers2: '#f08020', flowers3: '#f0c030',
-      bush: '#304028', bushLight: '#3a4830',
-      cliff: '#383030', cliffDark: '#201818', cliffMoss: '#303820',
-    },
-    sky: ['#382020', '#583828', '#704838'],
-    skyBottom: '#504030',
-    fog: '#403030',
-    outline: '#181010',
-    hasTrees: false, hasFlowers: false, hasSnow: false, hasRocks: true, hasBushes: false,
-    mountainHeight: 2.2, treeCount: 0, bushCount: 0,
-    cloudColor: '#585050', cloudShadow: '#383030',
-    ambientColor: '#504040', sunColor: '#e8a880',
-    hasLavaGlow: true,
-    weather: 'none', weatherIntensity: 0,
-    fogBanks: 2, fogOpacity: 0.18,
-  },
-  {
-    name: 'Cherry Blossom',
-    desc: 'Pink sakura canopy with drifting petals and warm spring light',
-    treeStyle: 'round',
-    colors: {
-      grass: '#6ab870', grassDark: '#4a9850', grassLight: '#8ad088', grassPale: '#b0e0a8',
-      dirt: '#b08860', dirtDark: '#907048', dirtLight: '#c8a078',
-      sand: '#e8d8b0', sandLight: '#f0e4c8',
-      rock: '#908888', rockDark: '#706868', rockMoss: '#6a9068',
-      snow: '#f8f0f4',
-      water: '#70b8c8', waterShallow: '#98d0d8', waterDeep: '#5098b0', waterFoam: '#d8eef0',
-      trunk: '#6a4838', trunkDark: '#4a2820', trunkLight: '#8a6850',
-      foliage: '#f0a0b8', foliageDark: '#d87898', foliageLight: '#f8c0d0',
-      flowers: '#f8b8d0', flowers2: '#f0d0e0', flowers3: '#e890a8',
-      bush: '#48984a', bushLight: '#60b060',
-      cliff: '#887068', cliffDark: '#685048', cliffMoss: '#5a8850',
-    },
-    sky: ['#c8a0b8', '#e0c0d0', '#e8d8e0'],
-    skyBottom: '#e8dce0',
-    fog: '#d8c0c8',
-    outline: '#4a2830',
-    hasTrees: true, hasFlowers: true, hasSnow: false, hasRocks: true, hasBushes: true,
-    mountainHeight: 1.6, treeCount: 55, bushCount: 65,
-    cloudColor: '#f8f0f4', cloudShadow: '#d8c0c8',
-    ambientColor: '#c8a8b8', sunColor: '#ffe8d8',
-    hasLeaves: true,
-    hasButterflies: true,
-    weather: 'rain', weatherIntensity: 0.15,
-    fogBanks: 2, fogOpacity: 0.1,
-  },
-  {
-    name: 'Frozen Tundra',
-    desc: 'Ice-blue expanse with crystal spires under aurora skies',
-    treeStyle: 'crystal',
-    colors: {
-      grass: '#a0b8c8', grassDark: '#80a0b8', grassLight: '#b8d0d8', grassPale: '#d0e0e8',
-      dirt: '#8090a0', dirtDark: '#607888', dirtLight: '#98a8b8',
-      sand: '#c0d0d8', sandLight: '#d0dce4',
-      rock: '#607898', rockDark: '#405870', rockMoss: '#5888a0',
-      snow: '#e8f0ff',
-      water: '#284060', waterShallow: '#406880', waterDeep: '#182840', waterFoam: '#80a0b8',
-      trunk: '#708898', trunkDark: '#506878', trunkLight: '#90a8b0',
-      foliage: '#88c0e0', foliageDark: '#68a0c8', foliageLight: '#a8d8f0',
-      flowers: '#c0d8f0', flowers2: '#a0e8e0', flowers3: '#d8e8f8',
-      bush: '#6888a0', bushLight: '#80a0b0',
-      cliff: '#506878', cliffDark: '#384858', cliffMoss: '#4878a0',
-    },
-    sky: ['#0a1828', '#183048', '#284860'],
-    skyBottom: '#304858',
-    fog: '#283848',
-    outline: '#182028',
-    hasTrees: true, hasFlowers: false, hasSnow: true, hasRocks: true, hasBushes: false,
-    mountainHeight: 1.4, treeCount: 18, bushCount: 0,
-    cloudColor: '#788898', cloudShadow: '#485868',
-    ambientColor: '#607888', sunColor: '#c0d0e0',
-    hasGlowSpots: true,
-    weather: 'snow', weatherIntensity: 0.8,
-    fogBanks: 5, fogOpacity: 0.22,
   },
 ];
 
@@ -2189,8 +2061,11 @@ function getTerrainHeight(x, z, land) {
   h -= Math.max(0, 0.2 - v2) * 0.12 * (1 - dist);
 
   // beach shelf — flatten terrain toward the edge for a visible sandy beach
-  if (dist > 0.70) {
-    const beachBlend = Math.min(1, (dist - 0.70) / 0.15);
+  // warp distance with noise for organic, non-circular beach edge
+  const beachWarp = noise2D(x * 1.1 + 77, z * 1.1 + 77) * 0.08 + noise2D(x * 2.3 + 33, z * 2.3 + 33) * 0.04;
+  const beachDist = dist + beachWarp;
+  if (beachDist > 0.68) {
+    const beachBlend = Math.min(1, (beachDist - 0.68) / 0.18);
     const beachH = mh * 0.08; // low beach shelf height
     h = h * (1 - beachBlend) + beachH * beachBlend;
   }
@@ -2271,13 +2146,17 @@ function createIsland(land) {
     const rockLine = maxTerrainH * 0.98;
 
     // ── BEACH RING — sandy perimeter specific to each biome ──
-    // beach starts at dist > 0.72 and fully sand by dist > 0.88
-    const beachStart = 0.72;
+    // warp distance with multi-octave noise for organic, non-circular coastline
+    const beachWarpCol = noise2D(x * 1.2 + 77, z * 1.2 + 77) * 0.10
+      + noise2D(x * 3.2 + 33, z * 3.2 + 33) * 0.05
+      + noise2D(x * 6.0 + 99, z * 6.0 + 99) * 0.025;
+    const warpedDist = dist + beachWarpCol;
+    const beachStart = 0.70;
     const beachFull = 0.88;
-    const beachFactor = dist > beachFull ? 1.0
-      : dist > beachStart ? Math.pow((dist - beachStart) / (beachFull - beachStart), 1.5) : 0;
-    // add noise to beach edge for organic look
-    const beachNoise = noise2D(x * 4.5 + 42, z * 4.5 + 42) * 0.15;
+    const beachFactor = warpedDist > beachFull ? 1.0
+      : warpedDist > beachStart ? Math.pow((warpedDist - beachStart) / (beachFull - beachStart), 1.5) : 0;
+    // additional fine noise for texture
+    const beachNoise = noise2D(x * 4.5 + 42, z * 4.5 + 42) * 0.12;
     const effectiveBeach = Math.min(1, Math.max(0, beachFactor + beachNoise * (beachFactor > 0 ? 1 : 0)));
 
     let col;
@@ -4645,11 +4524,6 @@ const CRICKET_CONFIGS = [
   { freq: 3200, trills: [1,2], interval: [2.0, 6.0], vol: 0.5 },   // Mushroom — deep sporadic clicks
   { freq: 5500, trills: [3,5], interval: [3.0, 8.0], vol: 0.3 },   // Crystal — rare ice pings
   { freq: 4000, trills: [2,3], interval: [1.2, 3.5], vol: 0.9 },   // Autumn — busy katydids
-  { freq: 4800, trills: [1,3], interval: [2.5, 5.0], vol: 0.4 },   // Coral — sparse tropical clicks
-  { freq: 3600, trills: [3,6], interval: [0.8, 2.5], vol: 1.0 },   // Spirit — dense chorus
-  { freq: 0,    trills: [0,0], interval: [99, 99],   vol: 0 },      // Volcanic — no insects (too hot)
-  { freq: 4500, trills: [2,4], interval: [1.5, 4.5], vol: 0.7 },   // Cherry — evening cicadas
-  { freq: 0,    trills: [0,0], interval: [99, 99],   vol: 0 },      // Frozen — no insects (too cold)
 ];
 
 // per-biome birdsong configs
@@ -4658,11 +4532,6 @@ const BIRD_CONFIGS = [
   { freq: 1600, notes: [1,2], interval: [6, 14], vol: 0.4, style: 'call' },   // Mushroom — soft coo
   { freq: 3200, notes: [1,1], interval: [8, 20], vol: 0.25, style: 'call' },  // Crystal — single high ping
   { freq: 1800, notes: [2,3], interval: [5, 12], vol: 0.5, style: 'song' },   // Autumn — robin
-  { freq: 2600, notes: [1,2], interval: [6, 15], vol: 0.35, style: 'call' },  // Coral — seabird
-  { freq: 1400, notes: [1,2], interval: [8, 18], vol: 0.3, style: 'call' },   // Spirit — owl hoot
-  { freq: 0,    notes: [0,0], interval: [99, 99], vol: 0, style: 'song' },    // Volcanic — none
-  { freq: 2400, notes: [3,5], interval: [4, 9],  vol: 0.6, style: 'trill' },  // Cherry — nightingale
-  { freq: 0,    notes: [0,0], interval: [99, 99], vol: 0, style: 'song' },    // Frozen — none
 ];
 
 // per-biome musical scales (pentatonic/modal, spanning ~2 octaves)
@@ -4671,15 +4540,9 @@ const SCALES = {
   mushroom: [58, 60, 63, 65, 67, 70, 72, 75, 77, 79],   // Bb minor pent
   crystal:  [64, 66, 69, 71, 73, 76, 78, 81, 83, 85],   // E minor pent
   autumn:   [57, 60, 62, 64, 67, 69, 72, 74, 76, 79],   // A mixolydian
-  coral:    [65, 67, 69, 72, 74, 77, 79, 81, 84, 86],   // F major pent
-  spirit:   [55, 58, 60, 62, 65, 67, 70, 72, 74, 77],   // G minor pent
-  volcanic: [53, 55, 58, 60, 62, 65, 67, 70, 72, 74],   // F minor pent
-  cherry:   [62, 64, 67, 69, 71, 74, 76, 79, 81, 83],   // D major pent
-  frozen:   [59, 62, 64, 66, 69, 71, 74, 76, 78, 81],   // B minor pent
 };
 const BIOME_SCALES = [
   SCALES.meadow, SCALES.mushroom, SCALES.crystal, SCALES.autumn,
-  SCALES.coral, SCALES.spirit, SCALES.volcanic, SCALES.cherry, SCALES.frozen,
 ];
 
 // biome ambient signature configs — unique continuous/periodic sounds per biome
@@ -4692,16 +4555,6 @@ const BIOME_AMBIENT = [
   { type: 'resonance', gain: 0.008, interval: [4, 12], freq: 2800 },
   // Autumn: dry leaf rustling
   { type: 'rustle', gain: 0.014 },
-  // Coral: underwater bubbles
-  { type: 'bubbles', gain: 0.01, interval: [0.8, 3], freq: 600 },
-  // Spirit: wind chimes + deep forest hum
-  { type: 'chimes', gain: 0.01, interval: [5, 15], freq: 2000 },
-  // Volcanic: lava bubbles + deep tectonic rumble
-  { type: 'lava', gain: 0.025 },
-  // Cherry: delicate wind chimes
-  { type: 'chimes', gain: 0.008, interval: [6, 18], freq: 2800 },
-  // Frozen: howling void + ice stress creaks
-  { type: 'ice', gain: 0.012, interval: [8, 25], freq: 180 },
 ];
 
 // surface types for footsteps — each has unique sonic character
@@ -6056,11 +5909,12 @@ function animate() {
     // smooth focal tracking — don't snap, ease into new focus distance
     const currentFocal = dofPass.uniforms.uFocalDepth.value;
     dofPass.uniforms.uFocalDepth.value += (targetFocal - currentFocal) * Math.min(1, dt * 3);
-    // wider focal range in walk mode (sharper nearby vision), tighter in cinematic
+    // wider focal range in walk mode, cinematic mode handles its own DOF per-shot
     const isCinematic = typeof cinematicMode !== 'undefined' && cinematicMode;
-    dofPass.uniforms.uFocalRange.value = walkMode ? 0.15 : (isCinematic ? 0.05 : 0.08);
-    // subtler in walk mode, dreamier in cinematic
-    dofPass.uniforms.uMaxBlur.value = walkMode ? 1.0 : (isCinematic ? 3.5 : 2.5);
+    if (!isCinematic) {
+      dofPass.uniforms.uFocalRange.value = walkMode ? 0.15 : 0.08;
+      dofPass.uniforms.uMaxBlur.value = walkMode ? 1.0 : 2.5;
+    }
   }
 
   // render depth pass for SSAO + DoF (render scene to depth target)
@@ -6448,6 +6302,11 @@ function dismissWelcome() {
   window.addEventListener(evt, dismissWelcome, { once: true, passive: true });
 });
 
+// cinematic post-processing targets
+let _cinGrainTarget = 0.02;
+let _cinVigTarget = 0;
+let _cinTempTarget = 0;
+
 function enterCinematicMode() {
   if (cinematicMode) return;
   if (!welcomeDismissed) dismissWelcome();
@@ -6458,6 +6317,12 @@ function enterCinematicMode() {
   cinematicAngle = Math.atan2(camera.position.z, camera.position.x);
   controls.enabled = false;
   document.getElementById('cinematic-indicator').classList.add('visible');
+  // letterbox bars
+  document.querySelectorAll('.cinematic-bar').forEach(b => b.classList.add('visible'));
+  // store base post values to restore later
+  _cinGrainTarget = colorGradePass.uniforms.uGrain.value;
+  _cinVigTarget = colorGradePass.uniforms.uVignetteStrength.value;
+  _cinTempTarget = colorGradePass.uniforms.uTemperature.value;
 }
 
 function exitCinematicMode() {
@@ -6467,6 +6332,8 @@ function exitCinematicMode() {
   document.getElementById('tour-btn').classList.remove('active');
   controls.enabled = true;
   document.getElementById('cinematic-indicator').classList.remove('visible');
+  // remove letterbox bars
+  document.querySelectorAll('.cinematic-bar').forEach(b => b.classList.remove('visible'));
 }
 
 // tour button
@@ -6916,27 +6783,28 @@ function updateWalkMode(elapsed, dt) {
 // ── CINEMATIC SHOTS — keyframed camera positions that showcase the island ──
 // Each shot: start/end position (polar: angle, dist, height), lookAt Y, duration
 // Angles are offsets from cinematicAngle so the orbit progresses naturally
+// dofRange: focal range override (lower = shallower DOF), dofBlur: max blur override
 const cinematicShots = [
-  // wide establishing orbit — classic overview
-  { angleSpan: 0.8, distStart: 9, distEnd: 9, hStart: 4.5, hEnd: 4.5, lookY: 0.9, duration: 8 },
-  // slow pull-in — wide to close, gently dropping
-  { angleSpan: 0.5, distStart: 11, distEnd: 6, hStart: 5, hEnd: 3, lookY: 1.0, duration: 7 },
-  // low water sweep — skimming the ocean surface to show waves and foam
-  { angleSpan: 0.7, distStart: 7, distEnd: 7, hStart: 0.6, hEnd: 0.8, lookY: 0.4, duration: 8 },
-  // high overhead drift — looking down at the island layout
-  { angleSpan: 0.4, distStart: 6, distEnd: 7, hStart: 8, hEnd: 9, lookY: 0.0, duration: 6 },
-  // close tree-level pass — intimate with vegetation
-  { angleSpan: 0.6, distStart: 4.5, distEnd: 5, hStart: 1.8, hEnd: 2.2, lookY: 1.2, duration: 7 },
-  // dramatic low angle — looking up at the island from below
-  { angleSpan: 0.5, distStart: 8, distEnd: 7, hStart: 0.3, hEnd: 0.5, lookY: 1.8, duration: 6 },
-  // slow wide pullback — retreating to reveal the whole scene
-  { angleSpan: 0.6, distStart: 6, distEnd: 12, hStart: 3.5, hEnd: 5.5, lookY: 0.8, duration: 8 },
-  // medium orbit with height wave — gentle rise and fall
-  { angleSpan: 0.9, distStart: 7.5, distEnd: 7.5, hStart: 2.5, hEnd: 5.5, lookY: 1.0, duration: 9 },
-  // cliff-edge flyby — close to the island edge, low
-  { angleSpan: 0.8, distStart: 4, distEnd: 4.5, hStart: 1.2, hEnd: 1.5, lookY: 0.8, duration: 7 },
-  // cinematic push-in to center — zooming toward the peak
-  { angleSpan: 0.3, distStart: 10, distEnd: 5, hStart: 4, hEnd: 3, lookY: 1.4, duration: 7 },
+  // 1. wide establishing orbit — classic opening, slow and graceful
+  { angleSpan: 0.6, distStart: 11, distEnd: 10.5, hStart: 5, hEnd: 4.8, lookY: 0.8, duration: 13, dofRange: 0.10, dofBlur: 2.5 },
+  // 2. gentle approach — wide to medium, no aggressive zoom
+  { angleSpan: 0.35, distStart: 12, distEnd: 8.5, hStart: 4.5, hEnd: 3.5, lookY: 1.0, duration: 11, dofRange: 0.06, dofBlur: 3.0 },
+  // 3. water-level sweep — low but not too close, showcases waves
+  { angleSpan: 0.7, distStart: 8, distEnd: 8.5, hStart: 1.0, hEnd: 1.2, lookY: 0.3, duration: 12, dofRange: 0.04, dofBlur: 3.5 },
+  // 4. crane up — medium distance, gently rising to elevated view
+  { angleSpan: 0.3, distStart: 8, distEnd: 9, hStart: 2.0, hEnd: 7.5, lookY: 0.5, duration: 11, dofRange: 0.09, dofBlur: 2.5 },
+  // 5. beauty orbit — medium distance, eye-level with trees, gentle arc
+  { angleSpan: 0.8, distStart: 7, distEnd: 7.5, hStart: 2.5, hEnd: 2.8, lookY: 1.2, duration: 13, dofRange: 0.05, dofBlur: 3.5 },
+  // 6. low hero angle — medium distance, looking up at the peak
+  { angleSpan: 0.4, distStart: 9, distEnd: 8.5, hStart: 0.8, hEnd: 1.2, lookY: 2.0, duration: 10, dofRange: 0.05, dofBlur: 3.5 },
+  // 7. slow pullback — medium to wide, reveal the whole scene
+  { angleSpan: 0.5, distStart: 8, distEnd: 13, hStart: 3.5, hEnd: 5.5, lookY: 0.7, duration: 14, dofRange: 0.08, dofBlur: 2.5 },
+  // 8. golden orbit — wide, steady, the classic beauty shot
+  { angleSpan: 1.1, distStart: 9.5, distEnd: 9.5, hStart: 3.8, hEnd: 3.8, lookY: 1.0, duration: 15, dofRange: 0.07, dofBlur: 3.0 },
+  // 9. elevated flyby — orbiting above island level
+  { angleSpan: 0.9, distStart: 7.5, distEnd: 8, hStart: 2.0, hEnd: 3.5, lookY: 0.8, duration: 12, dofRange: 0.06, dofBlur: 3.0 },
+  // 10. contemplative hold — barely moving, let the world breathe
+  { angleSpan: 0.12, distStart: 10, distEnd: 9.5, hStart: 4.2, hEnd: 4.0, lookY: 1.0, duration: 11, dofRange: 0.06, dofBlur: 3.0 },
 ];
 
 let currentShot = 0;
@@ -6963,8 +6831,8 @@ function updateCinematicCamera(elapsed, dt) {
 
   if (!cinematicMode) return;
 
-  // blend in smoothly from user camera
-  cinematicBlend = Math.min(1, cinematicBlend + dt * 0.4);
+  // blend in smoothly from user camera (slower entry = more cinematic)
+  cinematicBlend = Math.min(1, cinematicBlend + dt * 0.25);
   const entryEase = smootherStep(cinematicBlend);
 
   // tour mode: auto-cycle biomes
@@ -6975,7 +6843,6 @@ function updateCinematicCamera(elapsed, dt) {
       const prevTourIndex = tourLandIndex;
       tourLandIndex = (tourLandIndex + 1) % LANDS.length;
       switchToLand(tourLandIndex);
-      // completed a full tour cycle
       if (tourLandIndex === 0 && prevTourIndex === LANDS.length - 1) unlockAchievement('tour_complete');
     }
   }
@@ -6984,13 +6851,13 @@ function updateCinematicCamera(elapsed, dt) {
   const shot = cinematicShots[currentShot];
   shotTimer += dt;
   shotBlend = Math.min(1, shotTimer / shot.duration);
-  const t = smootherStep(shotBlend); // smooth interpolation through the shot
+  const t = smootherStep(shotBlend);
 
   // transition to next shot when current one ends
   if (shotBlend >= 1) {
     shotTimer = 0;
     shotBlend = 0;
-    cinematicAngle += shot.angleSpan; // carry forward the angle progress
+    cinematicAngle += shot.angleSpan;
     currentShot = (currentShot + 1) % cinematicShots.length;
   }
 
@@ -7006,16 +6873,44 @@ function updateCinematicCamera(elapsed, dt) {
   );
   _cinTargetLook.set(0, shot.lookY, 0);
 
-  // smooth camera movement — blend between entry lerp and shot position
-  const lerpRate = entryEase * 0.06;
+  // ── CAMERA BREATHING — subtle organic handheld sway ──
+  const breathX = Math.sin(elapsed * 0.37) * 0.015 + Math.sin(elapsed * 0.71) * 0.008;
+  const breathY = Math.sin(elapsed * 0.29) * 0.012 + Math.cos(elapsed * 0.53) * 0.006;
+  const breathZ = Math.cos(elapsed * 0.43) * 0.013 + Math.sin(elapsed * 0.67) * 0.007;
+  _cinTargetPos.x += breathX;
+  _cinTargetPos.y += breathY;
+  _cinTargetPos.z += breathZ;
+
+  // subtle look-at breathing (micro-drift where we're looking)
+  const lookBreathX = Math.sin(elapsed * 0.23) * 0.02;
+  const lookBreathY = Math.sin(elapsed * 0.31) * 0.015;
+  _cinTargetLook.x += lookBreathX;
+  _cinTargetLook.y += lookBreathY;
+
+  // smooth camera movement — slower lerp = more weight = more cinematic
+  const lerpRate = entryEase * 0.04;
   camera.position.lerp(_cinTargetPos, lerpRate);
 
-  // smooth look-at — prevents jarring snaps between shots
+  // smooth look-at — heavy interpolation for weighted feel
   camera.getWorldDirection(_cinCurrentLook);
   const currentLookTarget = _cinCurrentLook.multiplyScalar(5).add(camera.position);
-  currentLookTarget.lerp(_cinTargetLook, lerpRate * 1.5);
+  currentLookTarget.lerp(_cinTargetLook, lerpRate * 1.2);
   camera.lookAt(currentLookTarget);
   controls.target.lerp(_cinTargetLook, lerpRate);
+
+  // ── PER-SHOT DOF — shallow on close-ups, deeper on wide shots ──
+  const shotDofRange = shot.dofRange || 0.05;
+  const shotDofBlur = shot.dofBlur || 3.5;
+  dofPass.uniforms.uFocalRange.value += (shotDofRange - dofPass.uniforms.uFocalRange.value) * dt * 1.5;
+  dofPass.uniforms.uMaxBlur.value += (shotDofBlur - dofPass.uniforms.uMaxBlur.value) * dt * 1.5;
+
+  // ── CINEMATIC POST-PROCESSING — heavier grain, deeper vignette, warmer ──
+  const cinFactor = entryEase; // ramps up as we enter cinematic
+  colorGradePass.uniforms.uGrain.value += (0.04 - colorGradePass.uniforms.uGrain.value) * dt * 2;
+  const vigBoost = _cinVigTarget + cinFactor * 0.15;
+  colorGradePass.uniforms.uVignetteStrength.value += (vigBoost - colorGradePass.uniforms.uVignetteStrength.value) * dt * 2;
+  const tempBoost = _cinTempTarget + cinFactor * 0.3;
+  colorGradePass.uniforms.uTemperature.value += (tempBoost - colorGradePass.uniforms.uTemperature.value) * dt * 2;
 }
 
 animate();
