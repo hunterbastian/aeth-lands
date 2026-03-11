@@ -1894,31 +1894,16 @@ function createIsland(land) {
   waterGeo.rotateX(-Math.PI / 2);
   const wPos = waterGeo.attributes.position;
 
-  // clip to circle + store rest positions
-  const waterOrigX = new Float32Array(wPos.count);
-  const waterOrigZ = new Float32Array(wPos.count);
-  const waterOrigY = new Float32Array(wPos.count);
+  // clip to circle (rest positions stay in geometry — GPU computes displacement)
   for (let i = 0; i < wPos.count; i++) {
     let wx = wPos.getX(i), wz = wPos.getZ(i);
     const wd = Math.sqrt(wx * wx + wz * wz);
     if (wd > waterR) {
       const a = Math.atan2(wz, wx);
-      wx = Math.cos(a) * waterR;
-      wz = Math.sin(a) * waterR;
-      wPos.setX(i, wx); wPos.setZ(i, wz);
+      wPos.setX(i, Math.cos(a) * waterR);
+      wPos.setZ(i, Math.sin(a) * waterR);
     }
-    waterOrigX[i] = wx;
-    waterOrigZ[i] = wz;
-    waterOrigY[i] = 0;
   }
-
-  // per-vertex Jacobian for foam (computed in JS, passed as attribute)
-  const jacobianAttr = new Float32Array(wPos.count);
-  waterGeo.setAttribute('aJacobian', new THREE.BufferAttribute(jacobianAttr, 1));
-
-  // analytical normals from Gerstner math (replaces computeVertexNormals)
-  const analyticalNormals = new Float32Array(wPos.count * 3);
-  waterGeo.setAttribute('aAnalyticalNormal', new THREE.BufferAttribute(analyticalNormals, 3));
 
   // Gerstner wave parameters — gentle rolling waves for Ghibli aesthetic
   const gerstnerWaves = [
@@ -1937,6 +1922,9 @@ function createIsland(land) {
   ];
 
   // water shader — SoT-style: dramatic fresnel, Jacobian foam, SSS, god-ray specular
+  // Pack wave params into vec4 arrays for GPU compute (dirX, dirY, amp, freq) + (speed, steep, 0, 0)
+  const waveAArr = gerstnerWaves.map(w => new THREE.Vector4(w.dir[0], w.dir[1], w.amp, w.freq));
+  const waveBArr = gerstnerWaves.map(w => new THREE.Vector4(w.speed, w.steep, 0, 0));
   const waterUniforms = {
     uTime: { value: 0 },
     uShallow: { value: new THREE.Color(land.colors.waterShallow) },
@@ -1954,6 +1942,10 @@ function createIsland(land) {
     ]},
     uWindDir: { value: new THREE.Vector2(0.7, 0.5) },
     uWindStrength: { value: 0.6 },
+    uTideOffset: { value: 0 },
+    // GPU Gerstner wave params — computed per-vertex on GPU instead of CPU
+    uWaveA: { value: waveAArr },  // [dirX, dirY, effectiveAmp, freq] × 8
+    uWaveB: { value: waveBArr },  // [effectiveSpeed, steep, 0, 0] × 8
   };
 
   const waterMat = new THREE.ShaderMaterial({
@@ -1961,22 +1953,92 @@ function createIsland(land) {
     transparent: true,
     depthWrite: false,
     vertexShader: `
-      attribute float aJacobian;
-      attribute vec3 aAnalyticalNormal;
+      // GPU-computed Gerstner waves — all displacement runs on GPU in parallel
+      uniform float uTime;
+      uniform float uIslandR;
+      uniform float uWaterR;
+      uniform float uTideOffset;
+      uniform vec2 uWindDir;
+      uniform float uWindStrength;
+      uniform vec4 uWaveA[8]; // dirX, dirY, effectiveAmp, freq
+      uniform vec4 uWaveB[8]; // effectiveSpeed, steep, 0, 0
+
       varying vec3 vWorldPos;
       varying vec3 vNormal;
       varying float vDepth;
       varying float vIslandDist;
       varying float vWaveHeight;
       varying float vJacobian;
+
       void main() {
-        vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
-        vNormal = normalize(normalMatrix * aAnalyticalNormal);
-        vDepth = length(position.xz) / ${waterR.toFixed(1)};
-        vIslandDist = length(position.xz) / ${RADIUS.toFixed(1)};
-        vWaveHeight = position.y;
-        vJacobian = aJacobian;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vec3 restPos = position; // flat grid rest position
+        float dist = length(restPos.xz) / uIslandR;
+        float dampen = clamp((dist - 0.85) * 4.0, 0.0, 1.0);
+
+        // Gerstner wave accumulation
+        float dx = 0.0, dy = 0.0, dz = 0.0;
+        float ddx_dx = 0.0, ddz_dz = 0.0, ddx_dz = 0.0, ddz_dx = 0.0;
+        float nx = 0.0, nz = 0.0;
+
+        // wind modifiers (same for all vertices)
+        float windAmpMod = 0.85 + uWindStrength * 0.25;
+        float windSpeedMod = 0.9 + uWindStrength * 0.15;
+
+        for (int i = 0; i < 8; i++) {
+          vec2 dir = uWaveA[i].xy;
+          float baseAmp = uWaveA[i].z;
+          float freq = uWaveA[i].w;
+          float baseSpeed = uWaveB[i].x;
+          float steep = uWaveB[i].y;
+
+          // wind alignment — waves aligned with wind get boosted
+          float alignment = dot(dir, uWindDir);
+          float amp = baseAmp * windAmpMod * (0.85 + max(0.0, alignment) * 0.25);
+          float spd = baseSpeed * windSpeedMod;
+
+          float phase = freq * dot(dir, restPos.xz) - spd * uTime;
+          float s = sin(phase);
+          float c = cos(phase);
+
+          dx += steep * amp * dir.x * c;
+          dz += steep * amp * dir.y * c;
+          dy += amp * s;
+
+          // Jacobian terms for foam computation
+          float qfa = steep * amp * freq;
+          float negS = qfa * s;
+          ddx_dx += dir.x * dir.x * negS;
+          ddz_dz += dir.y * dir.y * negS;
+          ddx_dz += dir.x * dir.y * negS;
+          ddz_dx += dir.y * dir.x * negS;
+
+          // analytical normal
+          float wa = freq * amp * c;
+          nx -= dir.x * wa;
+          nz -= dir.y * wa;
+        }
+
+        // apply displacement with island-proximity damping
+        vec3 displaced = vec3(
+          restPos.x + dx * dampen,
+          restPos.y + dy * dampen + uTideOffset,
+          restPos.z + dz * dampen
+        );
+
+        // Jacobian determinant for foam (< 1 = wave breaking)
+        float J = (1.0 + ddx_dx) * (1.0 + ddz_dz) - ddx_dz * ddz_dx;
+        vJacobian = J * dampen + (1.0 - dampen);
+
+        // analytical normal from Gerstner math
+        vec3 aN = normalize(vec3(nx * dampen, 1.0, nz * dampen));
+        vNormal = normalize(normalMatrix * aN);
+
+        vWorldPos = (modelMatrix * vec4(displaced, 1.0)).xyz;
+        vDepth = length(restPos.xz) / uWaterR;
+        vIslandDist = dist;
+        vWaveHeight = displaced.y;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
       }
     `,
     fragmentShader: `
@@ -2317,13 +2379,8 @@ function createIsland(land) {
   water.receiveShadow = true;
   water.userData.isWaveWater = true;
   cachedWaterMesh = water;
-  water.userData.origX = waterOrigX;
-  water.userData.origY = waterOrigY;
-  water.userData.origZ = waterOrigZ;
   water.userData.waves = gerstnerWaves;
   water.userData.uniforms = waterUniforms;
-  water.userData.jacobian = jacobianAttr;
-  water.userData.analyticalNormals = analyticalNormals;
   group.add(water);
 
   // ── TREES (varied sizes) ─────────────────
@@ -5108,81 +5165,15 @@ function animate() {
     islandGroup.rotation.y = 0;
   }
 
-  // ── WATER Gerstner waves (uses cachedWaterMesh directly) ──
+  // ── WATER — GPU-computed Gerstner (just update uniforms, GPU does the rest) ──
   if (cachedWaterMesh) {
-    const wm = cachedWaterMesh;
-    const pos = wm.geometry.attributes.position;
-    const origX = wm.userData.origX;
-    const origY = wm.userData.origY;
-    const origZ = wm.userData.origZ;
-    const waves = wm.userData.waves;
-    const uniforms = wm.userData.uniforms;
-
+    const uniforms = cachedWaterMesh.userData.uniforms;
     uniforms.uTime.value = elapsed;
     uniforms.uSunDir.value.copy(sunLight.position).normalize();
     uniforms.uSunColor.value.copy(sunLight.color);
     uniforms.uWindDir.value.copy(wind.dir);
     uniforms.uWindStrength.value = wind.strength;
-
-    const windAmpMod = 0.85 + wind.strength * 0.25;
-    const windSpeedMod = 0.9 + wind.strength * 0.15;
-    const jacobian = wm.userData.jacobian;
-    const aNormals = wm.userData.analyticalNormals;
-    const wdx = wind.dir.x, wdy = wind.dir.y;
-    const cnt = pos.count;
-    const posArr = pos.array;
-
-    for (let i = 0; i < cnt; i++) {
-      const ox = origX[i], oz = origZ[i];
-      const wd = Math.sqrt(ox * ox + oz * oz) / RADIUS;
-      const dampen = Math.max(0, Math.min(1, (wd - 0.85) * 4));
-
-      let dx = 0, dy = 0, dz = 0;
-      let ddx_dx = 0, ddz_dz = 0, ddx_dz = 0, ddz_dx = 0;
-      let nx = 0, nz = 0;
-
-      for (let wi = 0; wi < waves.length; wi++) {
-        const w = waves[wi];
-        const alignment = w.dir[0] * wdx + w.dir[1] * wdy;
-        const amp = w.amp * windAmpMod * (0.85 + Math.max(0, alignment) * 0.25);
-        const spd = w.speed * windSpeedMod;
-
-        const phase = w.freq * (w.dir[0] * ox + w.dir[1] * oz) - spd * elapsed;
-        const s = Math.sin(phase), c = Math.cos(phase);
-        dx += w.steep * amp * w.dir[0] * c;
-        dz += w.steep * amp * w.dir[1] * c;
-        dy += amp * s;
-
-        const qfa = w.steep * amp * w.freq;
-        const negS = qfa * s; // qfa * (-(-s)) = qfa * s
-        ddx_dx += w.dir[0] * w.dir[0] * negS;
-        ddz_dz += w.dir[1] * w.dir[1] * negS;
-        ddx_dz += w.dir[0] * w.dir[1] * negS;
-        ddz_dx += w.dir[1] * w.dir[0] * negS;
-
-        const wa = w.freq * amp * c;
-        nx -= w.dir[0] * wa;
-        nz -= w.dir[1] * wa;
-      }
-
-      const i3 = i * 3;
-      posArr[i3] = ox + dx * dampen;
-      posArr[i3 + 1] = origY[i] + dy * dampen + tideOffset;
-      posArr[i3 + 2] = oz + dz * dampen;
-
-      const J = (1.0 + ddx_dx) * (1.0 + ddz_dz) - ddx_dz * ddz_dx;
-      jacobian[i] = J * dampen + (1.0 - dampen);
-
-      const fnx = nx * dampen;
-      const fnz = nz * dampen;
-      const invLen = 1.0 / Math.sqrt(fnx * fnx + 1.0 + fnz * fnz);
-      aNormals[i3] = fnx * invLen;
-      aNormals[i3 + 1] = invLen;
-      aNormals[i3 + 2] = fnz * invLen;
-    }
-    pos.needsUpdate = true;
-    wm.geometry.attributes.aJacobian.needsUpdate = true;
-    wm.geometry.attributes.aAnalyticalNormal.needsUpdate = true;
+    uniforms.uTideOffset.value = tideOffset;
   }
 
   // ── VEGETATION WIND (cached arrays — no traverse) ──
